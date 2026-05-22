@@ -9,9 +9,9 @@ const state = {
         globalBaseUrl: 'https://api.openai.com/v1',
         systemPrompt: '',
         models: [
-            { type: 'openai', name: 'gpt-4o-mini', apiKey: '', baseUrl: '' },
-            { type: 'openai', name: 'gpt-4o-mini', apiKey: '', baseUrl: '' },
-            { type: 'openai', name: 'gpt-4o-mini', apiKey: '', baseUrl: '' },
+            { type: 'doubao', name: 'doubao-seed-2-0-mini-260428', apiKey: '', baseUrl: 'https://ark.cn-beijing.volces.com/api/v3' },
+            { type: 'deepseek', name: 'deepseek-chat', apiKey: '', baseUrl: 'https://api.deepseek.com/v1' },
+            { type: 'openai', name: 'gpt-4o-mini', apiKey: '', baseUrl: 'https://api.openai.com/v1' },
         ],
         translate: { apiKey: '', baseUrl: '', modelName: 'doubao-pro-32k' },
     },
