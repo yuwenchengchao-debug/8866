@@ -1,0 +1,5492 @@
+/* ============================================
+   AI 多模型对话 - 主逻辑
+   ============================================ */
+
+// ==================== 状态管理 ====================
+const state = {
+    settings: {
+        globalApiKey: '',
+        globalBaseUrl: 'https://api.openai.com/v1',
+        systemPrompt: '',
+        models: [
+            { type: 'doubao', name: 'doubao-seed-2-0-mini-260428', apiKey: '', baseUrl: 'https://ark.cn-beijing.volces.com/api/v3' },
+            { type: 'deepseek', name: 'deepseek-chat', apiKey: '', baseUrl: 'https://api.deepseek.com/v1' },
+            { type: 'openai', name: 'gpt-4o-mini', apiKey: '', baseUrl: 'https://api.openai.com/v1' },
+        ],
+        translate: { apiKey: '', baseUrl: '', modelName: 'doubao-pro-32k', source: 'model2' },
+    },
+    isSending: false,
+    followupGeneration: 0,
+    abortControllers: [null, null, null],
+    currentMode: 'chat',
+    currentTheme: 'auto',
+    translateDirection: 'zh2en',
+    isTranslating: false,
+    enabledModels: [true, true, true],
+    webPanels: [],
+    floatWebNextSlot: 0, // 下一个应该分配的窗口位置
+    floatGridMode: 8, // 宫格模式: 3 / 4 / 8
+    customFloatWebs: [{name:'',url:''},{name:'',url:''},{name:'',url:''}], // 自定义悬浮网页
+    aiWebOrder: ['doubao','kimi','kling','huaban','zcool','uisdc','haiyiart','liblib'], // AI网页顺序
+    floatWebOrder: ['qianwen','jimeng','qingying','chatgpt','gemini','lovart','clouth','oiioii'], // 悬浮网页顺序
+    floatMixedOrder: null, // 混合排序顺序（内置+自定义）
+    defaultView: 'doubao', // 界面默认: 'doubao' | 'last'
+    lastSessionState: null, // 上次会话状态（用于恢复）
+    panelSlots: [null, null, null],
+    currentImages: [],
+    reversePrefs: {
+        language: 'zh',
+        platform: 'mj',
+    },
+    isReversing: false,
+    isTranslatingReverse: false,
+    reverseResultText: '',
+    lastReverseResultHTML: '',
+    messageBookmarks: [],
+    webSearchEnabled: false,
+    webSearchInstance: '',
+    inputHidden: false,
+    // 分类收藏数据
+    bookmarkCategories: [
+        {
+            id: 0,
+            name: '设计灵感 & 设计师社区',
+            icon: '🎨',
+            color: '#f59e0b',
+            sites: [
+                { name: 'Dribbble', url: 'https://dribbble.com/', desc: '国际设计师交流', icon: '🎯' },
+                { name: 'Behance', url: 'https://www.behance.net/', desc: 'Adobe 旗下设计师平台', icon: '📐' },
+                { name: 'Pinterest', url: 'https://www.pinterest.com/', desc: '灵感素材', icon: '📌' },
+                { name: '腾讯 Ardot', url: 'https://ardot.tencent.com/', desc: '腾讯 UI 设计平台', icon: '🐧' },
+                { name: '美叶', url: 'https://www.meiye.art/', desc: '设计灵感 / 教程', icon: '🌿' },
+            ]
+        },
+        {
+            id: 1,
+            name: '高清图库（免费 / 商用）',
+            icon: '🖼️',
+            color: '#10b981',
+            sites: [
+                { name: 'Pexels', url: 'https://www.pexels.com/zh-cn/', desc: '免费可商用', icon: '📷' },
+                { name: '视觉中国 VCG', url: 'https://www.vcg.com/', desc: '专业图库', icon: '🏢' },
+                { name: '500px', url: 'https://500px.com.cn/community/discover', desc: '摄影社区', icon: '📸' },
+            ]
+        },
+        {
+            id: 2,
+            name: '设计 & 效率工具',
+            icon: '🛠️',
+            color: '#6366f1',
+            sites: [
+                { name: 'iLovePDF', url: 'https://www.ilovepdf.com/', desc: 'PDF 压缩 / 转换 / 合并', icon: '📄' },
+                { name: '抠图网', url: 'https://www.koukoutu.com/', desc: '在线抠图', icon: '✂️' },
+                { name: 'Remove.bg', url: 'https://www.remove.bg/zh', desc: '免费一键抠图', icon: '🎯' },
+                { name: 'Pixian.ai', url: 'https://pixian.ai/', desc: 'AI 精细抠图', icon: '🤖' },
+                { name: '标准地图服务', url: 'http://bzdt.ch.mnr.gov.cn/index.html', desc: '官方标准地图', icon: '🗺️' },
+            ]
+        },
+        {
+            id: 3,
+            name: 'AIGC 综合导航 & 平台',
+            icon: '🧭',
+            color: '#8b5cf6',
+            sites: [
+                { name: '豆包', url: 'https://www.doubao.com', desc: '字节跳动 AI 助手', icon: '🌱' },
+                { name: '火山引擎模型广场', url: 'https://www.volcengine.com/product/model', desc: '字节大模型平台', icon: '🌋' },
+                { name: 'Coze 扣子', url: 'https://www.coze.cn/store/agent', desc: '字节 Agent 平台', icon: '🤖' },
+                { name: 'AIGC 导航', url: 'https://www.aigc.cn/', desc: '国内 AI 导航', icon: '🇨🇳' },
+                { name: 'AIGC List', url: 'https://www.aigclist.com/', desc: '国外工具汇总', icon: '🌍' },
+                { name: 'AI 导航网', url: 'https://www.ainav.cn/', desc: 'AI 工具导航', icon: '🧭' },
+                { name: 'AI 星踪岛', url: 'https://www.aixzd.com/', desc: '优设旗下 AI 导航', icon: '⭐' },
+            ]
+        },
+        {
+            id: 4,
+            name: 'AI 绘画 / 文生图',
+            icon: '🎨',
+            color: '#ec4899',
+            sites: [
+                { name: 'Midjourney', url: 'https://www.midjourney.com/', desc: '顶级审美', icon: '🎭' },
+                { name: 'Adobe Firefly', url: 'https://firefly.adobe.com/', desc: '版权友好', icon: '🔥' },
+                { name: 'Leonardo AI', url: 'https://leonardo.ai/', desc: '游戏 / 概念设计强', icon: '🎮' },
+                { name: 'Stable Diffusion', url: 'https://stability.ai/', desc: '开源文生图', icon: '⚡' },
+                { name: '360 智绘', url: 'https://zhihui.360.cn/', desc: '中文友好', icon: '🔢' },
+                { name: 'Raphael AI', url: 'https://raphaelai.com/', desc: '免费无限生成', icon: '🆓' },
+                { name: 'NightCafe', url: 'https://nightcafe.studio/', desc: '社区 + 4K 免费', icon: '🌙' },
+            ]
+        },
+        {
+            id: 5,
+            name: 'AI 文本 & 大模型',
+            icon: '💬',
+            color: '#06b6d4',
+            sites: [
+                { name: 'ChatGPT', url: 'https://openai.com/zh-Hans-CN/', desc: 'OpenAI', icon: '🤖' },
+                { name: 'Claude', url: 'https://www.anthropic.com/', desc: 'Anthropic', icon: '🧠' },
+                { name: 'RskAi', url: 'https://ai.rsk.cn/', desc: '国内聚合 GPT/Gemini/Claude', icon: '🔀' },
+            ]
+        },
+        {
+            id: 6,
+            name: 'AI 视频 & 动效',
+            icon: '🎬',
+            color: '#f97316',
+            sites: [
+                { name: 'Runway', url: 'https://runwayml.com/', desc: '文生视频 / AI 剪辑', icon: '✈️' },
+                { name: 'Pika Labs', url: 'https://pika.art/', desc: '高质量文生视频', icon: '🥧' },
+                { name: '深智视频大模型', url: 'https://www.shengshu.com/zh', desc: '生数科技', icon: '🌊' },
+                { name: 'Etna', url: 'https://etna.7volcanoes.com/', desc: '火山文生视频', icon: '🌋' },
+            ]
+        },
+        {
+            id: 7,
+            name: 'AI 3D & 建模',
+            icon: '🧊',
+            color: '#14b8a6',
+            sites: [
+                { name: 'Tripo AI', url: 'https://www.tripo3d.ai/', desc: '文生 3D', icon: '🔺' },
+                { name: 'Rodin Hyper3D', url: 'https://hyper3d.ai/', desc: '3D 生成', icon: '📐' },
+                { name: 'Meshy AI', url: 'https://www.meshy.ai/', desc: '图生 3D', icon: '🕸️' },
+            ]
+        },
+        {
+            id: 8,
+            name: 'AI 模型社区 & 素材站',
+            icon: '🏛️',
+            color: '#a855f7',
+            sites: [
+                { name: 'Civitai', url: 'https://civitai.com', desc: 'AI 绘画模型 / Lora', icon: '🎨' },
+                { name: '超能画布', url: 'http://photo.baidu.com/photasy/home', desc: 'AI 写真 / 修图', icon: '📷' },
+                { name: 'Piccopilot', url: 'https://www.piccopilot.com/zh', desc: 'AI 电商设计', icon: '🛒' },
+            ]
+        },
+        {
+            id: 9,
+            name: '视频平台（素材 / 参考）',
+            icon: '📺',
+            color: '#ef4444',
+            sites: [
+                { name: 'YouTube', url: 'https://www.youtube.com/', desc: '全球最大视频平台', icon: '▶️' },
+            ]
+        },
+    ],
+    // 用户自定义网站
+    userBookmarks: [],
+};
+
+const MODEL_TYPE_LABELS = { openai: 'GPT/OpenAI', deepseek: 'DeepSeek', doubao: '豆包', claude: 'Claude' };
+
+// ==================== DOM 引用 ====================
+const $ = id => document.getElementById(id);
+
+const dom = {
+    // 设置
+    settingsBtn: $('settingsBtn'),
+    settingsOverlay: $('settingsOverlay'),
+    closeSettingsBtn: $('closeSettingsBtn'),
+    saveSettingsBtn: $('saveSettingsBtn'),
+    resetSettingsBtn: $('resetSettingsBtn'),
+    globalApiKey: $('globalApiKey'),
+    globalBaseUrl: $('globalBaseUrl'),
+    systemPrompt: $('systemPrompt'),
+    exportDataBtn: $('exportDataBtn'),
+    importDataBtn: $('importDataBtn'),
+    importFileInput: $('importFileInput'),
+
+    // 聊天
+    chatInput: $('chatInput'),
+    sendBtn: $('sendBtn'),
+    fileInput: $('fileInput'),
+    uploadBtn: $('uploadBtn'),
+    magicBtn: $('magicBtn'),
+    clearMsgBtn: $('clearMsgBtn'),
+    clearMsgDropdown: $('clearMsgDropdown'),
+    clearMsgWrapper: $('clearMsgWrapper'),
+    hideInputBtn: $('hideInputBtn'),
+    chatInputArea: $('chatInputArea'),
+    chatBody: $('chatBody'),
+    imagePreviewArea: $('imagePreviewArea'),
+    webSearchToggle: $('webSearchToggle'),
+    webSearchInstance: $('webSearchInstance'),
+
+    // 主题
+    themeModeBtn: $('themeModeBtn'),
+    themeSelectBar: $('themeSelectBar'),
+
+    // 翻译
+    translateSource: $('translateSource'),
+    translateResult: $('translateResult'),
+    translateSwitchBtn: $('translateSwitchBtn'),
+    translateSubmitBtn: $('translateSubmitBtn'),
+    translateCopySourceBtn: $('translateCopySourceBtn'),
+    translateCopyTargetBtn: $('translateCopyTargetBtn'),
+
+    // 收藏（已整合到分类收藏）
+    bookmarkCategories: $('bookmarkCategories'),
+
+    // 备忘
+    noteInput: $('noteInput'),
+    noteAddBtn: $('noteAddBtn'),
+    noteList: $('noteList'),
+    noteCount: $('noteCount'),
+
+    toast: $('toast'),
+
+    // 反推提示词弹窗
+    promptReverseOverlay: $('promptReverseOverlay'),
+    closeReverseBtn: $('closeReverseBtn'),
+    reverseImageArea: $('reverseImageArea'),
+    reverseImagePreview: $('reverseImagePreview'),
+    reverseResult: $('reverseResult'),
+    reverseCopyBtn: $('reverseCopyBtn'),
+    reverseTranslateBtn: $('reverseTranslateBtn'),
+    reverseSubmitBtn: $('reverseSubmitBtn'),
+
+    // 聊天会话
+    sessionToggleBtn: $('sessionToggleBtn'),
+    sessionToggleText: $('sessionToggleText'),
+    sessionSidebar: $('sessionSidebar'),
+    sessionSidebarClose: $('sessionSidebarClose'),
+    sessionNewBtn: $('sessionNewBtn'),
+    sessionList: $('sessionList'),
+    sessionOverlay: $('sessionOverlay'),
+    fullscreenBtn: $('fullscreenBtn'),
+    aiWebBtn: $('aiWebBtn'),
+    aiWebDropdown: $('aiWebDropdown'),
+    aiWebWrapper: $('aiWebWrapper'),
+    floatWebBtn: $('floatWebBtn'),
+    floatWebDropdown: $('floatWebDropdown'),
+    floatWebWrapper: $('floatWebWrapper'),
+    watermarkBtn: $('watermarkBtn'),
+    floatGridMenu: $('floatGridMenu'),
+    customWebName0: $('customWebName0'), customWebUrl0: $('customWebUrl0'),
+    customWebName1: $('customWebName1'), customWebUrl1: $('customWebUrl1'),
+    customWebName2: $('customWebName2'), customWebUrl2: $('customWebUrl2'),
+
+    // 悬浮小窗口
+    floatingWebWindow: $('floatingWebWindow'),
+    floatingWebHeader: $('floatingWebHeader'),
+    floatingWebTitle: $('floatingWebTitle'),
+    floatingWebIframe: $('floatingWebIframe'),
+    floatingWebToggleSize: $('floatingWebToggleSize'),
+    floatingWebToggleOpacity: $('floatingWebToggleOpacity'),
+    floatingWebClose: $('floatingWebClose'),
+    searchBtn: $('searchBtn'),
+    searchOverlay: $('searchOverlay'),
+    globalSearchInput: $('globalSearchInput'),
+    globalSearchClear: $('globalSearchClear'),
+    globalSearchClose: $('globalSearchClose'),
+    globalSearchResults: $('globalSearchResults'),
+    // 消息收藏
+    bookmarksBtn: $('sessionBookmarksBtn'),
+    bookmarksOverlay: $('bookmarksOverlay'),
+    bookmarksClose: $('bookmarksClose'),
+    bookmarksList: $('bookmarksList'),
+    // 对比模式
+    compareBtn: $('compareBtn'),
+    compareOverlay: $('compareOverlay'),
+    compareGrid: $('compareGrid'),
+    compareClose: $('compareClose'),
+    comparePrev: $('comparePrev'),
+    compareNext: $('compareNext'),
+    compareRound: $('compareRound'),
+    compareDiffToggle: $('compareDiffToggle'),
+    compareVerifyBtn: $('compareVerifyBtn'),
+    compareMergeBtn: $('compareMergeBtn'),
+    compareVerifyArea: $('compareVerifyArea'),
+    compareVerifyTitle: $('compareVerifyTitle'),
+    compareVerifyStatus: $('compareVerifyStatus'),
+    compareVerifyBody: $('compareVerifyBody'),
+    compareVerifyClose: $('compareVerifyClose'),
+    // 连接校验
+    verifyBtn: $('verifyBtn'),
+    verifyModel: $('verifyModel'),
+    verifyResult: $('verifyResult'),
+    verifyCustom: $('verifyCustom'),
+    verifyCustomType: $('verifyCustomType'),
+    verifyCustomName: $('verifyCustomName'),
+    verifyCustomKey: $('verifyCustomKey'),
+    verifyCustomUrl: $('verifyCustomUrl'),
+};
+
+const panels = [0, 1, 2].map(i => ({
+    messages: $(`panelMessages${i}`),
+    status: $(`panelStatus${i}`),
+    name: $(`panelName${i}`),
+    modelType: $(`modelType${i}`),
+    modelNameSelect: $(`modelNameSelect${i}`),
+    modelName: $(`modelName${i}`),
+    modelKey: $(`modelKey${i}`),
+    modelUrl: $(`modelUrl${i}`),
+}));
+
+// 各模型类型对应的可选模型名称
+const MODEL_NAMES = {
+    doubao: [
+        { value: 'Doubao-Seed-2.0-Pro', label: 'Doubao-Seed-2.0-Pro' },
+        { value: 'Doubao-Seed-2.0-Lite', label: 'Doubao-Seed-2.0-Lite' },
+        { value: 'Doubao-Seed-2.0-Code-Preview', label: 'Doubao-Seed-2.0-Code-Preview' },
+        { value: 'Doubao-Seed-2.0-Mini', label: 'Doubao-Seed-2.0-Mini' },
+        { value: 'doubao-1-5-pro-256k-250115', label: 'doubao-1-5-pro-256k' },
+        { value: 'doubao-1-5-pro-32k-250115', label: 'doubao-1-5-pro-32k' },
+        { value: 'doubao-pro-32k-240828', label: 'doubao-pro-32k' },
+        { value: 'doubao-pro-128k-240828', label: 'doubao-pro-128k' },
+        { value: 'doubao-lite-32k-240828', label: 'doubao-lite-32k' },
+        { value: 'doubao-lite-128k-240828', label: 'doubao-lite-128k' },
+        { value: 'doubao-vision-pro-32k', label: 'doubao-vision-pro-32k' },
+    ],
+    openai: [
+        { value: 'gpt-4o', label: 'GPT-4o' },
+        { value: 'gpt-4o-mini', label: 'GPT-4o-mini' },
+        { value: 'gpt-4.1', label: 'GPT-4.1' },
+        { value: 'gpt-4.1-mini', label: 'GPT-4.1-mini' },
+        { value: 'gpt-4.1-nano', label: 'GPT-4.1-nano' },
+        { value: 'gpt-5.1', label: 'GPT-5.1' },
+        { value: 'gpt-5.2', label: 'GPT-5.2' },
+        { value: 'gpt-5.4', label: 'GPT-5.4' },
+        { value: 'gpt-5.5', label: 'GPT-5.5' },
+        { value: 'o3', label: 'o3' },
+        { value: 'o3-mini', label: 'o3-mini' },
+        { value: 'o4-mini', label: 'o4-mini' },
+    ],
+    deepseek: [
+        { value: 'deepseek-chat', label: 'deepseek-chat' },
+        { value: 'deepseek-reasoner', label: 'deepseek-reasoner' },
+        { value: 'deepseek-v4-flash', label: 'deepseek-v4-flash' },
+        { value: 'deepseek-v4-pro', label: 'deepseek-v4-pro' },
+    ],
+    claude: [
+        { value: 'claude-sonnet-4-20250514', label: 'claude-sonnet-4' },
+        { value: 'claude-haiku-4-20250414', label: 'claude-haiku-4' },
+        { value: 'claude-3-5-sonnet-20241022', label: 'claude-3.5-sonnet' },
+        { value: 'claude-3-5-haiku-20241022', label: 'claude-3.5-haiku' },
+    ],
+};
+
+function updateModelNameOptions(panelIdx) {
+    const type = panels[panelIdx].modelType.value;
+    const select = panels[panelIdx].modelNameSelect;
+    const input = panels[panelIdx].modelName;
+    const models = MODEL_NAMES[type] || [];
+    const currentValue = input.value.trim();
+
+    select.innerHTML = '<option value="">-- 选择模型 --</option>';
+    models.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m.value;
+        opt.textContent = m.label;
+        if (m.value === currentValue) opt.selected = true;
+        select.appendChild(opt);
+    });
+}
+
+let bookmarkData = [];
+let noteData = [];
+let autoThemeTimer = null;
+
+// ==================== 聊天会话管理 ====================
+
+let chatSessions = [];
+let currentSessionId = null;
+
+function generateId() {
+    return 's_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+}
+
+function getSession(id) {
+    return chatSessions.find(s => s.id === id);
+}
+
+function getSessions() {
+    return chatSessions || [];
+}
+
+function createNewSession() {
+    // 从现有会话中提取第一条消息作为标题
+    const session = {
+        id: generateId(),
+        title: '新对话',
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        enabledModels: [...state.enabledModels],
+        messages: [], // { panel, role, text, images[] }
+    };
+    chatSessions.unshift(session);
+    currentSessionId = session.id;
+    saveSessions();
+    return session;
+}
+
+function loadSessions() {
+    try {
+        const saved = localStorage.getItem('ai-chat-sessions');
+        if (saved) {
+            const data = JSON.parse(saved);
+            chatSessions = data.sessions || [];
+            currentSessionId = data.currentId || null;
+        }
+    } catch (e) { console.warn('加载聊天记录失败:', e); }
+
+    // 如果没有会话，创建一个默认的
+    if (chatSessions.length === 0) {
+        createNewSession();
+    } else if (currentSessionId && !getSession(currentSessionId)) {
+        // 当前会话ID无效，用第一个
+        currentSessionId = chatSessions[0].id;
+    } else if (!currentSessionId) {
+        currentSessionId = chatSessions[0].id;
+    }
+}
+
+function saveSessions() {
+    try {
+        localStorage.setItem('ai-chat-sessions', JSON.stringify({
+            sessions: chatSessions,
+            currentId: currentSessionId,
+        }));
+    } catch (e) { console.warn('保存聊天记录失败:', e); }
+}
+
+/** 保存单条消息到当前会话 */
+/** 提取关键词（取内容前 4-10 个有效字符作为标签） */
+function extractKeyword(text) {
+    if (!text) return '';
+    let s = text.replace(/^[\s\S]{0,3}?(你好|好的|当然|可以|没问题|收到|嗨|hello|hi)\s*/i, '').trim();
+    // 去掉标点和空格
+    s = s.replace(/[，。！？、；：""''（）【】《》\s,.!?;:'"()\[\]{}]/g, '');
+    return s.substring(0, 10) || text.substring(0, 6);
+}
+
+function saveMessage(role, panelIndex, text, images = [], keyword = '') {
+    const session = getSession(currentSessionId);
+    if (!session) return;
+
+    session.messages.push({ panel: panelIndex, role, text, images, keyword, time: Date.now() });
+    session.updatedAt = Date.now();
+
+    // 更新标题：从第一条用户消息取前10个字
+    if (role === 'user') {
+        const firstUserMsg = session.messages.find(m => m.role === 'user');
+        if (firstUserMsg && firstUserMsg.text) {
+            const t = firstUserMsg.text.trim();
+            session.title = t.length > 10 ? t.slice(0, 10) + '...' : t;
+        }
+    }
+
+    saveSessions();
+    renderSessionList();
+    updateSessionToggleText();
+}
+
+/** 格式化聊天时间 */
+function formatChatTime(ts) {
+    const d = new Date(ts);
+    const now = new Date();
+    const isToday = d.getFullYear() === now.getFullYear() &&
+                   d.getMonth() === now.getMonth() &&
+                   d.getDate() === now.getDate();
+    const time = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    if (isToday) return `今天 ${time}`;
+    return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日 ${time}`;
+}
+
+/** 创建时间分隔元素 */
+function createTimeSeparator(ts) {
+    const sep = document.createElement('div');
+    sep.className = 'time-separator';
+    sep.dataset.time = ts;
+    sep.textContent = formatChatTime(ts);
+    return sep;
+}
+
+/** 检查并添加时间分隔（间隔 >= 1 小时） */
+function addTimeSeparatorIfNeeded(panelIndex, timestamp, lastTimesMap) {
+    const container = panels[panelIndex].messages;
+    const lastChild = container.lastElementChild;
+
+    // 没有消息或只有欢迎语，不添加
+    if (!lastChild || lastChild.classList.contains('welcome-message')) return;
+
+    let lastTime = null;
+
+    if (lastTimesMap && lastTimesMap[panelIndex] !== undefined) {
+        // 从外部追踪表取时间（用于 loadSessionToDOM）
+        lastTime = lastTimesMap[panelIndex];
+    } else {
+        // 从 DOM 中往前找最后一条 data-time
+        let el = lastChild;
+        while (el) {
+            if (el.dataset && el.dataset.time && !isNaN(parseInt(el.dataset.time))) {
+                lastTime = parseInt(el.dataset.time);
+                break;
+            }
+            el = el.previousElementSibling;
+        }
+    }
+
+    if (lastTime === null) return;
+
+    // 间隔 >= 1 小时则添加分隔
+    if (timestamp - lastTime >= 3600000) {
+        container.appendChild(createTimeSeparator(timestamp));
+    }
+}
+
+/** 保存消息收藏到 localStorage */
+function saveMessageBookmarks() {
+    try { localStorage.setItem('ai-chat-message-bookmarks', JSON.stringify(state.messageBookmarks)); } catch (e) {}
+}
+
+/** 加载消息收藏 */
+function loadMessageBookmarks() {
+    try {
+        const data = localStorage.getItem('ai-chat-message-bookmarks');
+        if (data) state.messageBookmarks = JSON.parse(data);
+    } catch (e) {}
+}
+
+/** 切换消息收藏状态 */
+function toggleMessageBookmark(sessionId, panelIndex, msgTime, text, sessionName, panelLabel) {
+    const idx = state.messageBookmarks.findIndex(b => b.sessionId === sessionId && b.panel === panelIndex && b.msgTime === msgTime);
+    if (idx >= 0) {
+        state.messageBookmarks.splice(idx, 1);
+        saveMessageBookmarks();
+        return false;
+    }
+    state.messageBookmarks.push({
+        sessionId, panel: panelIndex, msgTime,
+        text: text.substring(0, 300),
+        sessionName: sessionName || '未命名',
+        panelLabel: panelLabel || `模型${panelIndex + 1}`,
+        time: Date.now(),
+    });
+    saveMessageBookmarks();
+    return true;
+}
+
+/** 收藏弹窗 */
+function openMsgBookmarks() {
+    dom.bookmarksOverlay.style.display = '';
+    renderMsgBookmarks();
+}
+
+function closeMsgBookmarks() {
+    dom.bookmarksOverlay.style.display = 'none';
+}
+
+function renderMsgBookmarks() {
+    const list = dom.bookmarksList;
+    if (state.messageBookmarks.length === 0) {
+        list.innerHTML = '<div class="search-empty">暂无收藏的消息\n在 AI 回答上点击 ☆ 即可收藏</div>';
+        return;
+    }
+    const items = [...state.messageBookmarks].sort((a, b) => (b.time || 0) - (a.time || 0));
+    let html = `<div class="search-result-count">共 ${items.length} 条收藏</div>`;
+    items.forEach((b, i) => {
+        const snippet = b.text?.substring(0, 100) || '';
+        const displayText = snippet.length < (b.text || '').length ? snippet + '...' : snippet;
+        html += `
+            <div class="search-result-item" data-bm-index="${i}">
+                <div class="sr-header">
+                    <span class="sr-role-tag sr-assistant">AI · ${b.panelLabel}</span>
+                    <span class="sr-session">📄 ${b.sessionName}</span>
+                    <button class="bm-remove-btn" data-bm-remove="${i}" title="取消收藏">✕</button>
+                </div>
+                <div class="sr-text">${displayText}</div>
+            </div>
+        `;
+    });
+    list.innerHTML = html;
+
+    // 点击导航到消息
+    list.querySelectorAll('.search-result-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+            if (e.target.closest('.bm-remove-btn')) return;
+            const bm = items[parseInt(item.dataset.bmIndex)];
+            if (bm) navigateToMsgBookmark(bm);
+        });
+    });
+
+    // 移除收藏
+    list.querySelectorAll('.bm-remove-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const bm = items[parseInt(btn.dataset.bmRemove)];
+            if (!bm) return;
+            const idx = state.messageBookmarks.findIndex(
+                b => b.sessionId === bm.sessionId && b.panel === bm.panel && b.msgTime === bm.msgTime
+            );
+            if (idx >= 0) {
+                state.messageBookmarks.splice(idx, 1);
+                saveMessageBookmarks();
+                renderMsgBookmarks();
+                showToast('已取消收藏', 'success');
+            }
+        });
+    });
+}
+
+/** 导航到收藏的消息 */
+function navigateToMsgBookmark(bm) {
+    const session = getSession(bm.sessionId);
+    if (!session) { showToast('该会话已不存在', 'error'); return; }
+
+    // 切换会话
+    switchSession(bm.sessionId);
+    closeMsgBookmarks();
+
+    // 在 DOM 中找到对应的消息
+    setTimeout(() => {
+        const panel = panels[bm.panel];
+        if (!panel) return;
+        const msgs = panel.messages.querySelectorAll('.message.assistant');
+        // 找匹配的消息：用 msgTime 匹配，或回退到文本匹配
+        let targetMsg = null;
+        for (const m of msgs) {
+            if (m.dataset.msgTime === String(bm.msgTime)) { targetMsg = m; break; }
+        }
+        // 回退：按文本匹配
+        if (!targetMsg && bm.text) {
+            const snippet = bm.text.substring(0, 50);
+            for (const m of msgs) {
+                if (m.textContent?.includes(snippet)) { targetMsg = m; break; }
+            }
+        }
+        if (targetMsg) {
+            targetMsg.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            // 高亮闪烁
+            targetMsg.style.transition = 'background 0.5s';
+            targetMsg.style.background = 'var(--accent-blue)';
+            targetMsg.style.background = 'rgba(99,102,241,0.15)';
+            setTimeout(() => { targetMsg.style.background = ''; }, 1500);
+        } else {
+            showToast('消息已定位到会话', 'success');
+        }
+    }, 100);
+}
+
+/** 将某会话的消息加载到面板DOM */
+function loadSessionToDOM(sessionId) {
+    const session = getSession(sessionId);
+    if (!session) return;
+
+    currentSessionId = sessionId;
+
+    // 先清空所有面板
+    for (let i = 0; i < 3; i++) {
+        panels[i].messages.innerHTML = '';
+    }
+
+    // 应用模型选择状态
+    if (session.enabledModels) {
+        state.enabledModels = [...session.enabledModels];
+    } else {
+        state.enabledModels = [true, true, true];
+    }
+    // 网页面板不持久化，每次加载会话时清空
+    state.webPanels = [];
+    applyModelToggleState();
+
+    // 构建模型索引 → slot索引 的映射
+    const modelToSlot = {};
+    for (let si = 0; si < state.panelSlots.length; si++) {
+        const slot = state.panelSlots[si];
+        if (slot && slot.type === 'model') {
+            modelToSlot[slot.index] = si;
+        }
+    }
+
+    // 填充消息
+    if (!session.messages || session.messages.length === 0) {
+        // 空会话显示欢迎消息
+        const welcomeTexts = [
+            '你好！我是 AI 助手 1，请问有什么可以帮助你的？',
+            '你好！我是 AI 助手 2，请问有什么可以帮助你的？',
+            '你好！我是 AI 助手 3，请问有什么可以帮助你的？',
+        ];
+        for (let si = 0; si < state.panelSlots.length; si++) {
+            const mi = getModelIndexAtSlot(si);
+            if (mi < 0) continue;
+            const w = document.createElement('div');
+            w.className = 'welcome-message';
+            w.innerHTML = `<p>${welcomeTexts[mi]}</p>`;
+            panels[si].messages.appendChild(w);
+        }
+    } else {
+        const lastTimePerPanel = {};
+        for (const msg of session.messages) {
+            const p = msg.panel; // 模型索引
+            if (p < 0 || p > 2) continue;
+            const si = modelToSlot[p];
+            if (si === undefined) continue; // 该模型当前未显示
+
+            const msgTime = msg.time || session.createdAt || Date.now();
+            addTimeSeparatorIfNeeded(si, msgTime, lastTimePerPanel);
+            lastTimePerPanel[si] = msgTime;
+
+            const div = document.createElement('div');
+            div.className = 'message ' + msg.role;
+            if (msg.text) {
+                const span = document.createElement('span');
+                span.textContent = msg.text;
+                div.appendChild(span);
+            }
+            for (const imgSrc of (msg.images || [])) {
+                const img = document.createElement('img');
+                img.className = 'message-image';
+                img.src = imgSrc;
+                div.appendChild(img);
+            }
+            panels[si].messages.appendChild(div);
+            if (msg.keyword) div.dataset.keyword = msg.keyword;
+            if (msg.time) div.dataset.msgTime = String(msg.time);
+            // 为已保存的助手消息添加操作按钮
+            if (msg.role === 'assistant') {
+                finishAssistantMessage(div);
+            }
+        }
+    }
+
+    // 恢复状态
+    updateSendButton();
+    renderSessionList();
+}
+
+/** 切换会话 */
+function switchSession(sessionId) {
+    if (state.isSending) {
+        showToast('请等待当前对话完成', '');
+        return;
+    }
+    // 加载目标会话（消息已逐条保存）
+    loadSessionToDOM(sessionId);
+    showToast('已切换对话', 'success');
+}
+
+/** 新建会话 */
+function startNewSession() {
+    if (state.isSending) {
+        showToast('请等待当前对话完成', '');
+        return;
+    }
+    const session = createNewSession();
+    loadSessionToDOM(session.id);
+    updateSessionToggleText();
+    showToast('已创建新对话', 'success');
+}
+
+/** 删除会话 */
+function deleteSession(sessionId) {
+    if (chatSessions.length <= 1) {
+        showToast('至少保留一个对话', '');
+        return;
+    }
+    if (!confirm('确定要删除这个对话吗？')) return;
+
+    chatSessions = chatSessions.filter(s => s.id !== sessionId);
+    if (currentSessionId === sessionId) {
+        // 切换到第一个会话
+        const next = chatSessions[0];
+        currentSessionId = next.id;
+        loadSessionToDOM(next.id);
+    }
+    saveSessions();
+    renderSessionList();
+    updateSessionToggleText();
+    showToast('对话已删除', 'success');
+}
+
+/** 渲染会话列表 */
+function renderSessionList() {
+    const list = dom.sessionList;
+    if (chatSessions.length === 0) {
+        list.innerHTML = '<div class="session-list-empty">暂无聊天记录</div>';
+        return;
+    }
+    list.innerHTML = chatSessions.map(s => {
+        const isActive = s.id === currentSessionId;
+        const time = new Date(s.updatedAt).toLocaleString('zh-CN', {
+            month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'
+        });
+        return `
+            <div class="session-item ${isActive ? 'active' : ''}" data-id="${s.id}">
+                <div class="session-item-icon">💬</div>
+                <div class="session-item-info">
+                    <div class="session-item-title">${escapeHtml(s.title)}</div>
+                    <div class="session-item-time">${time}</div>
+                </div>
+                <button class="session-item-del" onclick="deleteSession('${s.id}')" title="删除">✕</button>
+            </div>
+        `;
+    }).join('');
+
+    // 点击项切换会话
+    list.querySelectorAll('.session-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+            if (e.target.closest('.session-item-del')) return;
+            switchSession(item.dataset.id);
+        });
+    });
+}
+
+function updateSessionToggleText() {
+    if (!dom.sessionToggleText) return;
+    const session = getSession(currentSessionId);
+    if (session) {
+        dom.sessionToggleText.textContent = session.title.length > 8
+            ? session.title.slice(0, 8) + '…'
+            : session.title;
+    }
+}
+
+function toggleSessionSidebar() {
+    dom.sessionSidebar.classList.toggle('open');
+    dom.sessionOverlay.classList.toggle('open');
+}
+
+function closeSessionSidebar() {
+    dom.sessionSidebar.classList.remove('open');
+    dom.sessionOverlay.classList.remove('open');
+}
+
+/** 切换全屏模式 */
+function toggleFullscreen() {
+    const isFullscreen = document.body.classList.toggle('fullscreen-mode');
+    dom.fullscreenBtn.classList.toggle('active');
+    dom.fullscreenBtn.title = isFullscreen ? '退出全屏' : '全屏模式';
+    // 持久化全屏状态
+    localStorage.setItem('fullscreenMode', isFullscreen ? '1' : '0');
+}
+
+/** 恢复全屏模式状态 */
+function restoreFullscreenMode() {
+    const saved = localStorage.getItem('fullscreenMode');
+    if (saved === '1') {
+        document.body.classList.add('fullscreen-mode');
+        dom.fullscreenBtn.classList.add('active');
+        dom.fullscreenBtn.title = '退出全屏';
+    }
+}
+
+// ==================== 工具函数 ====================
+
+function showToast(message, type = '') {
+    const t = dom.toast;
+    t.textContent = message;
+    t.className = 'toast ' + type;
+    void t.offsetWidth;
+    t.classList.add('show');
+    clearTimeout(t._hideTimer);
+    t._hideTimer = setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function getModelConfig(panelIndex) {
+    const m = state.settings.models[panelIndex];
+    return {
+        type: m.type,
+        modelName: m.name,
+        apiKey: m.apiKey || state.settings.globalApiKey,
+        baseUrl: (m.baseUrl || state.settings.globalBaseUrl).replace(/\/+$/, ''),
+    };
+}
+
+function getTranslateConfig() {
+    const source = state.settings.translate.source || 'model2';
+
+    if (source === 'global') {
+        return {
+            apiKey: state.settings.globalApiKey,
+            baseUrl: state.settings.globalBaseUrl.replace(/\/+$/, ''),
+            modelName: 'gpt-4o-mini',
+        };
+    }
+
+    // source 为 model0, model1, model2
+    const idx = parseInt(source.replace('model', ''));
+    if (idx >= 0 && idx < 3) {
+        const m = state.settings.models[idx];
+        return {
+            apiKey: m.apiKey || state.settings.globalApiKey,
+            baseUrl: (m.baseUrl || state.settings.globalBaseUrl).replace(/\/+$/, ''),
+            modelName: m.name || 'doubao-pro-32k',
+        };
+    }
+
+    // 兜底
+    return {
+        apiKey: state.settings.globalApiKey,
+        baseUrl: state.settings.globalBaseUrl.replace(/\/+$/, ''),
+        modelName: 'gpt-4o-mini',
+    };
+}
+
+// ==================== 模式切换 ====================
+
+function switchMode(mode) {
+    state.currentMode = mode;
+
+    // 隐藏所有页面
+    document.querySelectorAll('.page-section').forEach(el => el.classList.remove('active'));
+
+    // 显示选中页面
+    const pageMap = { chat: 'page-chat', translate: 'page-translate', bookmarks: 'page-bookmarks' };
+    const target = document.querySelector('.' + pageMap[mode]);
+    if (target) target.classList.add('active');
+
+    // 更新 mode-btn
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.mode === mode);
+    });
+
+    // 关闭主题选择栏
+    dom.themeSelectBar.classList.remove('open');
+}
+
+// ==================== 背景主题 ====================
+
+/** 根据时间获取自动主题 */
+function getAutoTheme() {
+    const h = new Date().getHours();
+    if (h >= 6 && h < 12) return 'white';      // 早上
+    if (h >= 12 && h < 18) return 'orange-white'; // 下午
+    return 'gray';                               // 晚上
+}
+
+function applyTheme(theme) {
+    state.currentTheme = theme;
+    document.body.className = '';
+
+    if (theme === 'auto') {
+        const autoTheme = getAutoTheme();
+        document.body.classList.add('theme-' + autoTheme);
+        // 每小时自动更新
+        if (autoThemeTimer) clearInterval(autoThemeTimer);
+        autoThemeTimer = setInterval(() => {
+            if (state.currentTheme === 'auto') {
+                document.body.className = '';
+                document.body.classList.add('theme-' + getAutoTheme());
+            }
+        }, 3600000); // 1小时
+    } else if (theme === 'dark') {
+        // 默认深色，不加 class
+    } else {
+        document.body.classList.add('theme-' + theme);
+        if (autoThemeTimer) { clearInterval(autoThemeTimer); autoThemeTimer = null; }
+    }
+
+    // 更新选择栏选中状态
+    document.querySelectorAll('.theme-bar-btn').forEach(el => {
+        el.classList.toggle('active', el.dataset.theme === theme);
+    });
+
+    // 更新弹窗按钮文字
+    const themeLabels = {
+        dark: '背景选择',
+        auto: '自动变化',
+        white: '固定白',
+        'orange-white': '橘白',
+        gray: '灰色',
+        green: '绿色',
+    };
+    dom.themeModeBtn.textContent = `🎨 ${themeLabels[theme] || '背景选择'}`;
+
+    // 保存到 localStorage
+    try { localStorage.setItem('ai-chat-theme', theme); } catch (e) {}
+
+    showToast(`已切换到「${themeLabels[theme] || theme}」主题`);
+}
+
+function toggleThemeBar() {
+    dom.themeSelectBar.classList.toggle('open');
+}
+
+// ==================== 翻译 ====================
+
+function updateTranslateUI() {
+    const isZh2En = state.translateDirection === 'zh2en';
+    const sourceLabel = dom.translateSource.parentElement.querySelector('.lang-name');
+    const targetLabel = dom.translateResult.parentElement.querySelector('.lang-name');
+
+    document.querySelectorAll('.translate-col .lang-name').forEach((el, idx) => {
+        el.textContent = idx === 0 ? (isZh2En ? '中文' : '英文') : (isZh2En ? '英文' : '中文');
+    });
+
+    const placeholder = isZh2En ? '请输入要翻译的中文内容...' : 'Please enter English text...';
+    dom.translateSource.placeholder = placeholder;
+
+    const resultPlaceholder = isZh2En ? '英文翻译结果将显示在这里...' : '中文翻译结果将显示在这里...';
+    dom.translateResult.innerHTML = `<span class="translate-result-placeholder">${resultPlaceholder}</span>`;
+
+    // 清空输入和结果
+    dom.translateSource.value = '';
+    updateTranslateButtons();
+}
+
+function updateTranslateButtons() {
+    const hasText = dom.translateSource.value.trim().length > 0;
+    dom.translateSubmitBtn.disabled = !hasText || state.isTranslating;
+    dom.translateCopySourceBtn.disabled = !hasText;
+}
+
+async function doTranslate() {
+    const text = dom.translateSource.value.trim();
+    if (!text || state.isTranslating) return;
+
+    state.isTranslating = true;
+    dom.translateSubmitBtn.disabled = true;
+    dom.translateSubmitBtn.textContent = '翻译中...';
+
+    const isZh2En = state.translateDirection === 'zh2en';
+    const sourceLang = isZh2En ? '中文' : '英文';
+    const targetLang = isZh2En ? '英文' : '中文';
+
+    const systemPrompt = `你是一个专业的翻译助手。请将用户输入的${sourceLang}内容翻译成${targetLang}。只返回翻译结果，不要有任何额外说明。`;
+
+    const config = getTranslateConfig();
+    if (!config.apiKey) {
+        showToast('请先在设置中配置翻译 API Key', 'error');
+        state.isTranslating = false;
+        dom.translateSubmitBtn.textContent = '翻译';
+        return;
+    }
+
+    dom.translateResult.innerHTML = '<span style="color: var(--text-muted)">翻译中...</span>';
+
+    try {
+        const response = await fetch(`${config.baseUrl}/chat/completions`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${config.apiKey}`,
+            },
+            body: JSON.stringify({
+                model: config.modelName,
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: text },
+                ],
+                stream: true,
+                temperature: 0.3,
+                max_tokens: 4096,
+            }),
+        });
+
+        if (!response.ok) {
+            const errText = await response.text().catch(() => '未知错误');
+            throw new Error(`HTTP ${response.status}: ${errText}`);
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let fullContent = '';
+        dom.translateResult.innerHTML = '';
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            const chunk = decoder.decode(value, { stream: true });
+            const lines = chunk.split('\n').filter(line => line.startsWith('data: '));
+
+            for (const line of lines) {
+                const data = line.slice(6).trim();
+                if (data === '[DONE]') continue;
+                try {
+                    const parsed = JSON.parse(data);
+                    const delta = parsed.choices?.[0]?.delta?.content || '';
+                    if (delta) {
+                        fullContent += delta;
+                        dom.translateResult.textContent = fullContent;
+                    }
+                } catch (e) {}
+            }
+        }
+
+        dom.translateCopyTargetBtn.disabled = false;
+
+    } catch (err) {
+        dom.translateResult.innerHTML = `<span style="color: #ef4444">⚠️ 翻译失败: ${err.message}</span>`;
+        showToast('翻译失败: ' + err.message, 'error');
+    }
+
+    state.isTranslating = false;
+    dom.translateSubmitBtn.textContent = '翻译';
+    updateTranslateButtons();
+}
+
+async function copyText(text) {
+    try {
+        await navigator.clipboard.writeText(text);
+        showToast('已复制到剪贴板', 'success');
+    } catch {
+        showToast('复制失败', 'error');
+    }
+}
+
+// ==================== 对比模式 ====================
+
+let _compareRounds = [];
+let _compareCurrentIdx = 0;
+let _compareVerifyCache = {}; // 按轮次索引缓存校验结果 { idx: { type, title, status, bodyHtml } }
+
+/** 收集当前会话中所有轮次的对比数据 */
+function collectCompareRounds() {
+    _compareRounds = [];
+    const session = getSession(currentSessionId);
+    if (!session || !session.messages || session.messages.length === 0) return;
+
+    const msgs = session.messages;
+    let round = null;
+
+    for (const msg of msgs) {
+        if (msg.role === 'user') {
+            // 新轮次开始
+            round = { user: msg.text, models: [null, null, null] };
+            _compareRounds.push(round);
+        } else if (msg.role === 'assistant' && round && msg.panel >= 0 && msg.panel <= 2) {
+            round.models[msg.panel] = { text: msg.text, keyword: msg.keyword };
+        }
+    }
+
+    // 过滤掉没有模型回答的空轮次
+    _compareRounds = _compareRounds.filter(r => r.models.some(m => m && m.text));
+}
+
+/** 打开对比弹窗 */
+function openCompare() {
+    collectCompareRounds();
+    const sess = getSession(currentSessionId);
+    const hasAssistant = sess && sess.messages && sess.messages.some(m => m.role === 'assistant');
+    if (!sess || _compareRounds.length === 0 || !hasAssistant) {
+        showToast('暂无对话可对比，请先向模型提问', '');
+        return;
+    }
+
+    _compareCurrentIdx = _compareRounds.length - 1;
+    dom.compareDiffToggle.checked = true;
+    dom.compareOverlay.style.display = '';
+    dom.compareVerifyBtn.disabled = false;
+    dom.compareMergeBtn.disabled = false;
+    renderCompareRound();
+}
+
+/** 关闭对比弹窗 */
+function closeCompare() {
+    dom.compareOverlay.style.display = 'none';
+    dom.compareVerifyArea.style.display = 'none';
+}
+
+/** 渲染当前选中轮次 */
+function renderCompareRound() {
+    const round = _compareRounds[_compareCurrentIdx];
+    if (!round) return;
+
+    const total = _compareRounds.length;
+    const diffOn = dom.compareDiffToggle.checked;
+
+    dom.compareRound.textContent = `第 ${_compareCurrentIdx + 1} 轮 / 共 ${total} 轮`;
+    dom.comparePrev.disabled = _compareCurrentIdx <= 0;
+    dom.compareNext.disabled = _compareCurrentIdx >= total - 1;
+
+    // 找出实际参与本轮对话的模型（有回答文本的）
+    const allMeta = [
+        { label: '模型1', color: '#6366f1', icon: '🤖' },
+        { label: '模型2', color: '#f59e0b', icon: '🔮' },
+        { label: '模型3', color: '#10b981', icon: '✨' },
+    ];
+    const activePanels = [];
+    for (let p = 0; p < 3; p++) {
+        if (round.models[p] && round.models[p].text) {
+            activePanels.push({ index: p, meta: allMeta[p] });
+        }
+    }
+    const colCount = activePanels.length;
+    if (colCount === 0) { dom.compareGrid.innerHTML = '<div class="compare-msg-empty" style="padding:80px 20px">暂无回答数据</div>'; return; }
+
+    const texts = round.models.map(m => m?.text || '');
+    const diff = diffOn ? computeDiff(texts) : null;
+
+    // 统计卡
+    let statsHtml = '';
+    if (diff && diff.stats) {
+        const s = diff.stats;
+        let badges = '';
+        for (const ap of activePanels) {
+            const pi = ap.index;
+            const badge = pi === 0 ? `<span class="stats-badge" style="--sbg:#6366f1;--stxt:#fff">🤖 ${s.unique[pi]}条独有</span>`
+                       : pi === 1 ? `<span class="stats-badge" style="--sbg:#f59e0b;--stxt:#1a1a2e">🔮 ${s.unique[pi]}条独有</span>`
+                       : `<span class="stats-badge" style="--sbg:#10b981;--stxt:#fff">✨ ${s.unique[pi]}条独有</span>`;
+            badges += badge;
+        }
+        const totalS = s.unique[0] + s.unique[1] + s.unique[2] + s.consensus + s.partial;
+        statsHtml = `
+            <div class="compare-stats">
+                <span class="compare-stats-title">📊 差异概览</span>
+                <div class="compare-stats-badges">
+                    ${badges}
+                    <span class="stats-badge" style="--sbg:var(--border-color);--stxt:var(--text-muted)">☯ ${s.consensus}条共识</span>
+                    <span class="stats-badge stats-badge-total">共 ${totalS} 句</span>
+                </div>
+            </div>
+        `;
+    }
+
+    let html = statsHtml + `<div class="compare-grid grid-${colCount}">`;
+    for (const ap of activePanels) {
+        const p = ap.index;
+        const meta = ap.meta;
+        const msg = round.models[p];
+
+        html += `<div class="compare-col">
+            <div class="compare-col-header" style="color:${meta.color}; border-color:${meta.color}">
+                ${meta.icon} ${meta.label}
+            </div>`;
+
+        // 关键词标签行（含图例）
+        if (diff && diff.keywords && diff.keywords[p].length > 0) {
+            html += '<div class="compare-kw-row">';
+            html += '<div class="compare-kw-legend">';
+            html += '<span>🔑 关键词</span>';
+            html += '<span class="compare-kw-legend-dot" style="background:#fbbf24"></span> 独有';
+            html += '<span class="compare-kw-legend-dot" style="background:#a78bfa"></span> 部分';
+            html += '<span class="compare-kw-legend-dot" style="background:var(--border-color)"></span> 共识';
+            html += '</div>';
+            html += '<div class="compare-kw-tags">';
+            for (const k of diff.keywords[p]) {
+                const cls = k.type === 'unique' ? 'compare-kw-tag compare-kw-unique' :
+                           k.type === 'consensus' ? 'compare-kw-tag compare-kw-consensus' :
+                           'compare-kw-tag compare-kw-partial';
+                const title = k.type === 'unique' ? '仅该模型提到' :
+                             k.type === 'consensus' ? '三个模型都有' : '两个模型提到';
+                html += `<span class="${cls}" title="${title}">${k.kw}</span>`;
+            }
+            html += '</div></div>';
+        }
+
+        if (!msg || !msg.text) {
+            html += `<div class="compare-msg-empty">该模型未参与本轮对话</div>`;
+        } else if (diffOn && diff) {
+            html += `<div class="compare-msg">${diff.htmls[p]}</div>`;
+        } else {
+            const safe = msg.text
+                .replace(/\u{1F504}/gu, '').replace(/\u{1F4CB}/gu, '')
+                .replace(/\u{1F5D1}\uFE0F?/gu, '').replace(/[\u{2B50}\u{2606}]/gu, '')
+                .replace(/\u{23F9}/gu, '')
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            html += `<div class="compare-msg">${safe.replace(/\n/g, '<br>')}</div>`;
+        }
+        html += `</div>`;
+    }
+    html += '</div>';
+    dom.compareGrid.innerHTML = html;
+
+    // 恢复该轮次的校验结果缓存
+    restoreVerifyCache();
+}
+
+/** 恢复当前轮次的校验结果缓存 */
+function restoreVerifyCache() {
+    const cached = _compareVerifyCache[_compareCurrentIdx];
+    if (cached) {
+        dom.compareVerifyArea.style.display = 'flex';
+        dom.compareVerifyTitle.textContent = cached.title;
+        dom.compareVerifyStatus.textContent = cached.status;
+        dom.compareVerifyBody.innerHTML = cached.bodyHtml;
+        dom.compareVerifyBtn.disabled = false;
+        dom.compareMergeBtn.disabled = false;
+    } else {
+        dom.compareVerifyArea.style.display = 'none';
+        dom.compareVerifyBtn.disabled = false;
+        dom.compareMergeBtn.disabled = false;
+    }
+}
+
+/** 关闭校验结果区 */
+function closeCompareVerify() {
+    dom.compareVerifyArea.style.display = 'none';
+    dom.compareVerifyBtn.disabled = false;
+    dom.compareMergeBtn.disabled = false;
+}
+
+/** 调用指定模型的非流式 API */
+async function callModelNonStreaming(panelIndex, systemMsg, userMsg) {
+    const config = getModelConfig(panelIndex);
+    const { apiKey, baseUrl, modelName } = config;
+    const isClaude = config.type === 'claude';
+
+    if (!apiKey) throw new Error('未配置 API Key');
+    if (!modelName) throw new Error('未配置模型名称');
+
+    if (isClaude) {
+        const claudeMessages = [];
+        if (systemMsg) claudeMessages.push({ role: 'user', content: systemMsg });
+        claudeMessages.push({ role: 'user', content: userMsg });
+
+        const res = await fetch(`${baseUrl.replace(/\/+$/, '')}/messages`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': apiKey,
+                'anthropic-version': '2023-06-01',
+            },
+            body: JSON.stringify({ model: modelName, max_tokens: 2048, messages: claudeMessages, system: systemMsg }),
+            signal: AbortSignal.timeout(30000),
+        });
+
+        if (!res.ok) {
+            const errText = await res.text().catch(() => '');
+            let msg; try { const j = JSON.parse(errText); msg = j.error?.message || j.message || errText; } catch { msg = errText; }
+            throw new Error(`HTTP ${res.status}: ${msg || res.statusText}`);
+        }
+        const data = await res.json();
+        return data.content?.[0]?.text || '';
+    } else {
+        const messages = [];
+        if (systemMsg) messages.push({ role: 'system', content: systemMsg });
+        messages.push({ role: 'user', content: userMsg });
+
+        const res = await fetch(`${baseUrl}/chat/completions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+            body: JSON.stringify({ model: modelName, messages, stream: false, temperature: 0.3, max_tokens: 2048 }),
+            signal: AbortSignal.timeout(30000),
+        });
+
+        if (!res.ok) {
+            const errText = await res.text().catch(() => '');
+            let msg; try { const j = JSON.parse(errText); msg = j.error?.message || j.message || errText; } catch { msg = errText; }
+            throw new Error(`HTTP ${res.status}: ${msg || res.statusText}`);
+        }
+        const data = await res.json();
+        return data.choices?.[0]?.message?.content || '';
+    }
+}
+
+/** 尝试调用任意可用模型进行非流式请求，自动跳过失败的模型
+ * @returns {Promise<{text: string, modelIndex: number, modelName: string}>}
+ */
+async function callAnyAvailableModel(systemMsg, userMsg) {
+    const errors = [];
+    for (let i = 0; i < 3; i++) {
+        try {
+            const config = getModelConfig(i);
+            if (!config.apiKey || !config.modelName) {
+                errors.push(`模型${i + 1}: 未配置API Key或模型名称`);
+                continue;
+            }
+            const text = await callModelNonStreaming(i, systemMsg, userMsg);
+            return { text, modelIndex: i, modelName: config.modelName };
+        } catch (err) {
+            errors.push(`模型${i + 1}: ${err.message}`);
+        }
+    }
+    throw new Error(`所有模型均调用失败:\n${errors.join('\n')}`);
+}
+
+/** 类型一：准确性校验 - 评估各模型回答质量并给出建议 */
+async function verifyCompareAccuracy() {
+    const round = _compareRounds[_compareCurrentIdx];
+    if (!round) { showToast('没有可校验的数据', ''); return; }
+
+    const allMeta = [
+        { label: '模型1', color: '#6366f1', icon: '🤖' },
+        { label: '模型2', color: '#f59e0b', icon: '🔮' },
+        { label: '模型3', color: '#10b981', icon: '✨' },
+    ];
+
+    // 检查是否有实际回答
+    const activeTexts = [];
+    for (let p = 0; p < 3; p++) {
+        activeTexts.push(round.models[p]?.text || '(未参与)');
+    }
+
+    dom.compareVerifyArea.style.display = 'flex';
+    dom.compareVerifyTitle.textContent = '🎯 准确性校验中...';
+    dom.compareVerifyStatus.textContent = '';
+    dom.compareVerifyBody.innerHTML = '<div class="compare-verify-loading">⏳ 正在调用可用模型进行校验评估...</div>';
+    dom.compareVerifyBtn.disabled = true;
+    dom.compareMergeBtn.disabled = true;
+
+    try {
+        const systemMsg = '你是一个专业的AI回答评估专家。你的任务是对比三个AI模型的回答，评估每个回答的准确性、完整性和质量。';
+        const userMsg = `请分析以下三个AI模型对同一问题的回答，为每个模型打出准确性分数（0-100分），并给出一个精确评价。
+
+注意：
+1. 准确性分数请基于回答的事实正确性、逻辑合理性、信息完整度综合评判
+2. 回答质量越高分数越高
+3. 评价字数要求：不低于10字，小于100字
+4. 评价内容要具体指出该回答的优点或不足
+
+用户问题：${round.user || '(无)'}
+
+模型1 回答：
+${activeTexts[0]}
+
+模型2 回答：
+${activeTexts[1]}
+
+模型3 回答：
+${activeTexts[2]}
+
+请严格按以下格式输出（不要多余内容）：
+模型1分数：XX
+模型2分数：XX
+模型3分数：XX
+建议：XXXX`;
+
+        const { text: resultText, modelIndex, modelName } = await callAnyAvailableModel(systemMsg, userMsg);
+
+        // 解析结果
+        const scores = [0, 0, 0];
+        let suggestion = '';
+
+        for (let i = 0; i < 3; i++) {
+            const m = `模型${i + 1}分数`;
+            const re = new RegExp(`${m}[：:](\\d+)`);
+            const match = resultText.match(re);
+            if (match) scores[i] = Math.min(100, Math.max(0, parseInt(match[1])));
+        }
+
+        const sugMatch = resultText.match(/建议[：:](.+?)(?:\n|$)/);
+        if (sugMatch) suggestion = sugMatch[1].trim().slice(0, 35);
+
+        // 如果没有解析到分数，尝试其他格式
+        if (scores.every(s => s === 0)) {
+            for (let i = 0; i < 3; i++) {
+                const re = new RegExp(`(?:模型|Model)[${i + 1}]\\s*(?:得分|分数|评分|score)[：:\\s]*(\\d+)`, 'i');
+                const match = resultText.match(re);
+                if (match) scores[i] = Math.min(100, Math.max(0, parseInt(match[1])));
+            }
+        }
+
+        dom.compareVerifyTitle.textContent = '📊 准确性校验结果';
+        dom.compareVerifyStatus.textContent = `✓ 评估完成 · 校验模型：模型${modelIndex + 1} (${modelName})`;
+
+        // 生成评分卡片
+        let html = '<div class="verify-score-grid">';
+        for (let i = 0; i < 3; i++) {
+            const score = scores[i] || 0;
+            const cls = score >= 80 ? 'good' : score >= 60 ? 'medium' : 'poor';
+            const barCls = score >= 80 ? 'good' : score >= 60 ? 'medium' : 'poor';
+            html += `
+                <div class="verify-score-card">
+                    <div class="verify-score-icon">${allMeta[i].icon}</div>
+                    <div class="verify-score-label">${allMeta[i].label}</div>
+                    <div class="verify-score-value ${cls}">${score}%</div>
+                    <div class="verify-score-bar">
+                        <div class="verify-score-bar-fill ${barCls}" style="width:${score}%"></div>
+                    </div>
+                </div>
+            `;
+        }
+        html += '</div>';
+
+        if (suggestion) {
+            html += `
+                <div class="verify-suggestion">
+                    <span class="verify-suggestion-icon">💡</span>
+                    <span class="verify-suggestion-text">${suggestion}</span>
+                </div>
+            `;
+        }
+
+        dom.compareVerifyBody.innerHTML = html;
+
+        // 缓存校验结果
+        _compareVerifyCache[_compareCurrentIdx] = { type: 'accuracy', title: dom.compareVerifyTitle.textContent, status: dom.compareVerifyStatus.textContent, bodyHtml: html };
+
+    } catch (err) {
+        dom.compareVerifyTitle.textContent = '❌ 校验失败';
+        dom.compareVerifyStatus.textContent = '出错了';
+        dom.compareVerifyBody.innerHTML = `
+            <div class="verify-suggestion" style="border-color:#ef4444;">
+                <span class="verify-suggestion-icon">⚠️</span>
+                <span class="verify-suggestion-text" style="color:#ef4444;">校验失败：${err.message}</span>
+            </div>
+        `;
+        dom.compareVerifyBtn.disabled = false;
+        dom.compareMergeBtn.disabled = false;
+    }
+}
+
+/** 类型二：整合答案 - 分析各模型回答并整合最佳回复 */
+async function verifyCompareMerge() {
+    const round = _compareRounds[_compareCurrentIdx];
+    if (!round) { showToast('没有可整合的数据', ''); return; }
+
+    const allMeta = [
+        { label: '模型1', color: '#6366f1', icon: '🤖' },
+        { label: '模型2', color: '#f59e0b', icon: '🔮' },
+        { label: '模型3', color: '#10b981', icon: '✨' },
+    ];
+
+    const activeTexts = [];
+    for (let p = 0; p < 3; p++) {
+        activeTexts.push(round.models[p]?.text || '(未参与)');
+    }
+
+    dom.compareVerifyArea.style.display = 'flex';
+    dom.compareVerifyTitle.textContent = '💡 整合答案中...';
+    dom.compareVerifyStatus.textContent = '';
+    dom.compareVerifyBody.innerHTML = '<div class="compare-verify-loading">⏳ 正在分析各模型回答，整合最佳答案...</div>';
+    dom.compareVerifyBtn.disabled = true;
+    dom.compareMergeBtn.disabled = true;
+
+    try {
+        const systemMsg = '你是一个专业的AI答案整合专家。你的任务是对比多个AI模型的回答，深入分析每个回答的优缺点，然后整合出一份最全面、最准确、最清晰的最佳答案。';
+        const userMsg = `请分析以下三个AI模型对同一问题的回答，然后整合出一份最佳答案。
+
+要求：
+1. 先简要分析每个回答的特点和优缺点
+2. 然后整合出一份最全面、最准确、最清晰的最佳答案
+3. 最佳答案应融合各模型的优点，修正不足之处
+
+用户问题：${round.user || '(无)'}
+
+🤖 模型1 回答：
+${activeTexts[0]}
+
+🔮 模型2 回答：
+${activeTexts[1]}
+
+✨ 模型3 回答：
+${activeTexts[2]}
+
+请按以下格式输出：
+【分析】
+模型1：简要分析...
+模型2：简要分析...
+模型3：简要分析...
+
+【整合答案】
+（整合后的最佳答案）`;
+
+        const { text: resultText, modelIndex, modelName } = await callAnyAvailableModel(systemMsg, userMsg);
+
+        dom.compareVerifyTitle.textContent = '💡 整合答案结果';
+        dom.compareVerifyStatus.textContent = `✓ 整合完成 · 校验模型：模型${modelIndex + 1} (${modelName})`;
+
+        // 美化输出：给模型名称加标签
+        let formatted = resultText
+            .replace(/模型1/g, '<span class="merge-model-tag merge-tag-0">🤖 模型1</span>')
+            .replace(/模型2/g, '<span class="merge-model-tag merge-tag-1">🔮 模型2</span>')
+            .replace(/模型3/g, '<span class="merge-model-tag merge-tag-2">✨ 模型3</span>')
+            .replace(/【分析】/g, '<br><strong>📋 分析</strong><br>')
+            .replace(/【整合答案】/g, '<br><strong>✅ 整合答案</strong><br>')
+            .replace(/\n/g, '<br>');
+
+        dom.compareVerifyBody.innerHTML = `
+            <div class="verify-merge-result">${formatted}</div>
+        `;
+
+        // 缓存整合结果
+        _compareVerifyCache[_compareCurrentIdx] = { type: 'merge', title: dom.compareVerifyTitle.textContent, status: dom.compareVerifyStatus.textContent, bodyHtml: dom.compareVerifyBody.innerHTML };
+
+    } catch (err) {
+        dom.compareVerifyTitle.textContent = '❌ 整合失败';
+        dom.compareVerifyStatus.textContent = '出错了';
+        dom.compareVerifyBody.innerHTML = `
+            <div class="verify-suggestion" style="border-color:#ef4444;">
+                <span class="verify-suggestion-icon">⚠️</span>
+                <span class="verify-suggestion-text" style="color:#ef4444;">整合失败：${err.message}</span>
+            </div>
+        `;
+        dom.compareVerifyBtn.disabled = false;
+        dom.compareMergeBtn.disabled = false;
+    }
+}
+
+/**
+ * 计算三个文本的差异，返回差异 HTML、统计数据和关键词标签
+ */
+function computeDiff(texts) {
+    const sentences = texts.map(t => splitSentences(t));
+    const results = sentences.map(() => []);
+    const stats = { unique: [0, 0, 0], consensus: 0, partial: 0 };
+
+    for (let i = 0; i < 3; i++) {
+        for (const s of sentences[i]) {
+            const trimmed = s.trim();
+            if (!trimmed) continue;
+
+            let matchCount = 0;
+            for (let j = 0; j < 3; j++) {
+                if (i === j) continue;
+                if (sentenceSimilar(trimmed, sentences[j])) matchCount++;
+            }
+
+            const safeText = trimmed.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            if (matchCount === 2) {
+                results[i].push(`<span class="compare-diff-consensus"><span class="compare-diff-tag compare-diff-tag-consensus">共识</span>${safeText}</span>`);
+                if (i === 0) stats.consensus++;
+            } else if (matchCount === 0) {
+                results[i].push(`<span class="compare-diff-unique"><span class="compare-diff-tag compare-diff-tag-unique">独有</span>${safeText}</span>`);
+                stats.unique[i]++;
+            } else {
+                results[i].push(safeText);
+                if (i === 0) stats.partial++;
+            }
+        }
+    }
+
+    // 提取关键词并按模型分组，标注共识/独有
+    const keywords = texts.map((t, pi) => {
+        if (!t) return [];
+        const raw = _extractCompareKeywords(t);
+        const scored = raw.map(kw => {
+            let matchCount = 0;
+            for (let j = 0; j < 3; j++) {
+                if (j === pi) continue;
+                if (texts[j] && _extractCompareKeywords(texts[j]).includes(kw)) matchCount++;
+            }
+            return { kw, type: matchCount === 2 ? 'consensus' : matchCount === 0 ? 'unique' : 'partial' };
+        });
+        // 去重并保留最重要的（最多8个）
+        return scored.filter((v, idx, arr) => arr.findIndex(x => x.kw === v.kw) === idx).slice(0, 8);
+    });
+
+    return {
+        htmls: results.map(r => r.join('\n')),
+        stats,
+        keywords,
+    };
+}
+
+/** 按中英文句号、问号、叹号、换行拆分为句子 */
+function splitSentences(text) {
+    if (!text) return [];
+    // 保留分隔符在句子末尾
+    return text.split(/(?<=[。！？\n])|(?<=\.\s)/).filter(s => s.trim()).map(s => s.trim());
+}
+
+/** 检查一条句子是否在句子列表中有相似内容（用词语重叠率判断） */
+function sentenceSimilar(sentence, sentenceList) {
+    const words = _extractCompareKeywords(sentence);
+    if (words.length === 0) return false;
+
+    for (const other of sentenceList) {
+        const otherWords = _extractCompareKeywords(other);
+        if (otherWords.length === 0) continue;
+        const overlap = words.filter(w => otherWords.includes(w)).length;
+        const ratio = overlap / Math.min(words.length, otherWords.length);
+        if (ratio >= 0.25) return true; // 25% 以上词重叠即视为相似
+    }
+    return false;
+}
+
+/** 提取关键词（分词：取2字以上中文词、英文单词） */
+function _extractCompareKeywords(text) {
+    if (!text) return [];
+    const tokens = [];
+    // 提取中文词（2个字以上）
+    const zhMatches = text.match(/[\u4e00-\u9fff]{2,}/g);
+    if (zhMatches) tokens.push(...zhMatches);
+    // 提取英文单词（3字符以上）
+    const enMatches = text.match(/\b[a-zA-Z]{3,}\b/g);
+    if (enMatches) tokens.push(...enMatches.map(w => w.toLowerCase()));
+    return [...new Set(tokens)];
+}
+
+// ==================== 收藏夹 ====================
+
+function loadBookmarks() {
+    try {
+        const saved = localStorage.getItem('ai-chat-bookmarks');
+        if (saved) bookmarkData = JSON.parse(saved);
+    } catch (e) {}
+    renderBookmarks();
+}
+
+function saveBookmarks() {
+    try { localStorage.setItem('ai-chat-bookmarks', JSON.stringify(bookmarkData)); } catch (e) {}
+}
+
+function addBookmark() {
+    const title = dom.bookmarkTitle.value.trim();
+    const url = dom.bookmarkUrl.value.trim();
+    if (!title || !url) { showToast('请填写网站名称和地址', ''); return; }
+
+    let finalUrl = url;
+    if (!/^https?:\/\//i.test(url)) finalUrl = 'https://' + url;
+
+    // 获取网站图标
+    let icon = '🌐';
+    try {
+        const hostname = new URL(finalUrl).hostname;
+        icon = `https://www.google.com/s2/favicons?domain=${hostname}&sz=32`;
+    } catch (e) {}
+
+    bookmarkData.unshift({ id: Date.now(), title, url: finalUrl, icon });
+    saveBookmarks();
+    renderBookmarks();
+
+    dom.bookmarkTitle.value = '';
+    dom.bookmarkUrl.value = '';
+    showToast('已添加收藏', 'success');
+}
+
+function deleteBookmark(id) {
+    bookmarkData = bookmarkData.filter(b => b.id !== id);
+    saveBookmarks();
+    renderBookmarks();
+}
+
+function renderBookmarks() {
+    dom.bookmarkCount.textContent = `${bookmarkData.length} 个`;
+    if (bookmarkData.length === 0) {
+        dom.bookmarkList.innerHTML = '<div class="bkm-empty">暂无收藏，添加一个网站吧</div>';
+        return;
+    }
+
+    dom.bookmarkList.innerHTML = bookmarkData.map(b => `
+        <div class="bkm-item">
+            <div class="bkm-item-icon">
+                ${b.icon && b.icon.startsWith('http')
+                    ? `<img src="${b.icon}" width="16" height="16" style="border-radius:2px" onerror="this.style.display='none';this.parentElement.textContent='🌐'">`
+                    : '🌐'}
+            </div>
+            <div class="bkm-item-info">
+                <div class="bkm-item-title">${escapeHtml(b.title)}</div>
+                <div class="bkm-item-url">${escapeHtml(b.url)}</div>
+            </div>
+            <a class="bkm-item-link" href="${b.url}" target="_blank" rel="noopener">打开</a>
+            <button class="bkm-item-delete" onclick="deleteBookmark(${b.id})" title="删除">✕</button>
+        </div>
+    `).join('');
+}
+
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+// ==================== 备忘录 ====================
+
+function loadNotes() {
+    try {
+        const saved = localStorage.getItem('ai-chat-notes');
+        if (saved) noteData = JSON.parse(saved);
+    } catch (e) {}
+    renderNotes();
+}
+
+function saveNotes() {
+    try { localStorage.setItem('ai-chat-notes', JSON.stringify(noteData)); } catch (e) {}
+}
+
+function addNote() {
+    const content = dom.noteInput.value.trim();
+    if (!content) { showToast('请输入备忘内容', ''); return; }
+
+    noteData.unshift({
+        id: Date.now(),
+        content,
+        time: new Date().toLocaleString('zh-CN', { hour12: false }),
+    });
+    saveNotes();
+    renderNotes();
+    dom.noteInput.value = '';
+    showToast('已添加备忘', 'success');
+}
+
+function deleteNote(id) {
+    noteData = noteData.filter(n => n.id !== id);
+    saveNotes();
+    renderNotes();
+}
+
+function renderNotes() {
+    dom.noteCount.textContent = `${noteData.length} 条`;
+    if (noteData.length === 0) {
+        dom.noteList.innerHTML = '<div class="bkm-empty">暂无备忘，添加一条吧</div>';
+        return;
+    }
+
+    dom.noteList.innerHTML = noteData.map(n => `
+        <div class="note-item">
+            <div class="note-item-header">
+                <span class="note-item-time">${n.time}</span>
+                <div class="note-item-actions">
+                    <button class="note-item-delete" onclick="deleteNote(${n.id})" title="删除">✕</button>
+                </div>
+            </div>
+            <div class="note-item-content">${escapeHtml(n.content)}</div>
+        </div>
+    `).join('');
+}
+
+// ==================== 设置管理 ====================
+
+function loadSettings() {
+    try {
+        const saved = localStorage.getItem('ai-chat-settings');
+        if (saved) {
+            const p = JSON.parse(saved);
+            state.settings = { ...state.settings, ...p, models: p.models || state.settings.models, translate: { ...state.settings.translate, ...(p.translate || {}) } };
+        }
+    } catch (e) { console.warn('加载设置失败:', e); }
+
+    // 加载主题
+    try {
+        const theme = localStorage.getItem('ai-chat-theme');
+        if (theme) applyTheme(theme);
+        else applyTheme('auto');
+    } catch (e) {}
+}
+
+function applySettingsToUI() {
+    dom.globalApiKey.value = state.settings.globalApiKey;
+    dom.globalBaseUrl.value = state.settings.globalBaseUrl;
+    dom.systemPrompt.value = state.settings.systemPrompt;
+
+    // 更新翻译源选择按钮
+    document.querySelectorAll('.translate-source-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.source === (state.settings.translate.source || 'model2'));
+    });
+
+    // 应用连接校验模型选择
+    dom.verifyModel.value = state.settings.verifyModel || '0';
+    dom.verifyCustom.classList.toggle('show', dom.verifyModel.value === 'custom');
+
+    // 应用联网搜索设置
+    dom.webSearchInstance.value = state.settings.webSearchInstance || '';
+    state.webSearchInstance = state.settings.webSearchInstance || '';
+    
+    // 应用界面默认设置
+    const defaultView = state.settings.defaultView || 'doubao';
+    state.defaultView = defaultView;
+    document.querySelectorAll('.default-view-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.view === defaultView);
+    });
+
+    for (let i = 0; i < 3; i++) {
+        const m = state.settings.models[i];
+        panels[i].modelType.value = m.type;
+        panels[i].modelName.value = m.name;
+        panels[i].modelKey.value = m.apiKey;
+        panels[i].modelUrl.value = m.baseUrl;
+        // 初始化模型名称下拉选项
+        updateModelNameOptions(i);
+    }
+
+    // 加载自定义悬浮网页
+    for (let i = 0; i < 3; i++) {
+        if (dom[`customWebName${i}`]) dom[`customWebName${i}`].value = state.customFloatWebs[i]?.name || '';
+        if (dom[`customWebUrl${i}`]) dom[`customWebUrl${i}`].value = state.customFloatWebs[i]?.url || '';
+    }
+    updatePanelNames();
+}
+
+function saveSettingsToState() {
+    state.settings.globalApiKey = dom.globalApiKey.value.trim();
+    state.settings.globalBaseUrl = dom.globalBaseUrl.value.trim();
+    state.settings.systemPrompt = dom.systemPrompt.value.trim();
+
+    state.settings.translate.source = (document.querySelector('.translate-source-btn.active')?.dataset.source) || 'model2';
+    state.settings.verifyModel = dom.verifyModel.value || '0';
+    state.settings.webSearchInstance = dom.webSearchInstance.value.trim();
+    
+    // 保存界面默认设置
+    state.settings.defaultView = document.querySelector('.default-view-btn.active')?.dataset.view || 'doubao';
+    state.defaultView = state.settings.defaultView;
+
+    for (let i = 0; i < 3; i++) {
+        state.settings.models[i] = {
+            type: panels[i].modelType.value,
+            name: panels[i].modelName.value.trim(),
+            apiKey: panels[i].modelKey.value.trim(),
+            baseUrl: panels[i].modelUrl.value.trim(),
+        };
+    }
+
+    // 保存自定义悬浮网页
+    for (let i = 0; i < 3; i++) {
+        state.customFloatWebs[i] = {
+            name: dom[`customWebName${i}`].value.trim(),
+            url: dom[`customWebUrl${i}`].value.trim(),
+        };
+    }
+    saveCustomFloatWebs();
+}
+
+function persistSettings() {
+    try { localStorage.setItem('ai-chat-settings', JSON.stringify(state.settings)); } catch (e) { console.warn('保存设置失败:', e); }
+}
+
+/** 校验模型连接 — 发一条简短请求测试 API 连通性 */
+async function verifyModelConnection() {
+    const mode = dom.verifyModel.value;
+    let apiKey, baseUrl, modelName, modelType, label;
+
+    if (mode === 'custom') {
+        // 使用自定义填写
+        apiKey = dom.verifyCustomKey.value.trim();
+        baseUrl = dom.verifyCustomUrl.value.trim();
+        modelName = dom.verifyCustomName.value.trim();
+        modelType = dom.verifyCustomType.value;
+        label = '✏️ 自定义';
+        if (!apiKey) { showResult('error', '请填写 API Key'); return; }
+        if (!baseUrl) { showResult('error', '请填写 Base URL'); return; }
+        if (!modelName) { showResult('error', '请填写模型名称'); return; }
+    } else {
+        // 使用已有模型
+        const idx = parseInt(mode);
+        const config = getModelConfig(idx);
+        apiKey = config.apiKey;
+        baseUrl = config.baseUrl;
+        modelName = config.modelName;
+        modelType = config.type;
+        label = ['🤖 模型 1', '🔮 模型 2', '✨ 模型 3'][idx];
+        if (!apiKey) { showResult('error', `${label} 未配置 API Key，请先在设置中填写或在全局设置中填写`); return; }
+        if (!modelName) { showResult('error', `${label} 未配置模型名称`); return; }
+    }
+
+    dom.verifyResult.className = 'verify-result loading';
+    dom.verifyResult.textContent = `⏳ 正在连接 ${label}...`;
+    dom.verifyBtn.disabled = true;
+
+    try {
+        const isClaude = modelType === 'claude';
+
+        if (isClaude) {
+            const body = {
+                model: modelName,
+                max_tokens: 10,
+                messages: [{ role: 'user', content: 'hi' }],
+                stream: false,
+            };
+            const res = await fetch(`${baseUrl.replace(/\/+$/, '')}/messages`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': apiKey,
+                    'anthropic-version': '2023-06-01',
+                },
+                body: JSON.stringify(body),
+                signal: AbortSignal.timeout(15000),
+            });
+
+            if (!res.ok) {
+                const errText = await res.text().catch(() => '');
+                let msg;
+                try { const j = JSON.parse(errText); msg = j.error?.message || j.message || errText; } catch { msg = errText; }
+                throw new Error(`HTTP ${res.status}: ${msg || res.statusText}`);
+            }
+
+            const data = await res.json();
+            const reply = data.content?.[0]?.text || '';
+            showResult('success', `✅ ${label} 连接成功！<br>模型回应：<code style="background:var(--bg-card);padding:1px 5px;border-radius:3px">${reply.slice(0, 60)}</code>`);
+
+        } else {
+            const res = await fetch(`${baseUrl}/chat/completions`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+                body: JSON.stringify({ model: modelName, messages: [{ role: 'user', content: 'hi' }], stream: false, max_tokens: 10 }),
+                signal: AbortSignal.timeout(15000),
+            });
+
+            if (!res.ok) {
+                const errText = await res.text().catch(() => '');
+                let msg;
+                try { const j = JSON.parse(errText); msg = j.error?.message || j.message || errText; } catch { msg = errText; }
+                throw new Error(`HTTP ${res.status}: ${msg || res.statusText}`);
+            }
+
+            const data = await res.json();
+            const reply = data.choices?.[0]?.message?.content || '';
+            showResult('success', `✅ ${label} 连接成功！<br>模型回应：<code style="background:var(--bg-card);padding:1px 5px;border-radius:3px">${reply.slice(0, 60)}</code>`);
+        }
+
+    } catch (err) {
+        showResult('error', `❌ ${label} 校验失败：${err.message}`);
+    } finally {
+        dom.verifyBtn.disabled = false;
+    }
+
+    function showResult(type, msg) {
+        dom.verifyResult.className = `verify-result ${type}`;
+        dom.verifyResult.innerHTML = msg;
+    }
+}
+
+function updatePanelNames() {
+    const labels = ['AI 助手 1', 'AI 助手 2', 'AI 助手 3'];
+    for (let i = 0; i < 3; i++) {
+        const m = state.settings.models[i];
+        const typeLabel = MODEL_TYPE_LABELS[m.type] || m.type;
+        panels[i].name.textContent = m.name ? `${typeLabel}: ${m.name}` : labels[i];
+    }
+}
+
+/**
+ * 计算当前总显示数（启用的模型 + 网页）
+ */
+function getTotalDisplayCount() {
+    return state.enabledModels.filter(Boolean).length + state.webPanels.length;
+}
+
+/**
+ * 根据 enabledModels + webPanels 重新计算 panelSlots 并刷新面板显示
+ */
+function recalcPanelSlots() {
+    const slots = [];
+    // 网页面板放左边
+    for (const webType of state.webPanels) {
+        slots.push({ type: 'web', webType });
+    }
+    // 模型面板放右边
+    for (let i = 0; i < 3; i++) {
+        if (state.enabledModels[i]) {
+            slots.push({ type: 'model', index: i });
+        }
+    }
+    state.panelSlots = slots;
+    renderPanels();
+}
+
+/**
+ * 根据 panelSlots 渲染3个面板的内容
+ */
+function renderPanels() {
+    const grid = document.getElementById('chatGrid');
+    const count = state.panelSlots.length;
+    grid.className = 'chat-grid panel-count-' + count;
+
+    for (let i = 0; i < 3; i++) {
+        const panel = document.querySelector(`.chat-panel[data-panel="${i}"]`);
+        const slot = state.panelSlots[i];
+
+        if (!slot) {
+            panel.setAttribute('data-hidden', 'true');
+            continue;
+        }
+
+        panel.removeAttribute('data-hidden');
+
+        if (slot.type === 'web') {
+            const webConfig = AI_WEB_URLS[slot.webType];
+            panels[i].messages.style.display = 'none';
+
+            let webview = panel.querySelector('.panel-webview');
+            if (!webview) {
+                webview = document.createElement('div');
+                webview.className = 'panel-webview';
+                // 通义千问需要允许弹出窗口才能正常使用
+                const sandboxAttr = slot.webType === 'qianwen' ? 'sandbox="allow-popups allow-scripts allow-forms allow-same-origin"' : '';
+                webview.innerHTML = `<iframe src="" frameborder="0" allow="clipboard-write; clipboard-read" ${sandboxAttr}></iframe>`;
+                panel.appendChild(webview);
+            }
+
+            const iframe = webview.querySelector('iframe');
+            if (iframe.src !== webConfig.url) {
+                iframe.src = webConfig.url;
+            }
+            webview.style.display = 'flex';
+
+            panels[i].name.textContent = webConfig.name;
+            panels[i].status.textContent = '网页版';
+            panels[i].status.style.color = '#10b981';
+
+            const iconEl = panel.querySelector('.panel-icon');
+            if (iconEl) iconEl.textContent = webConfig.icon;
+
+            // 添加/更新关闭按钮
+            let closeBtn = panel.querySelector('.panel-close-btn');
+            if (!closeBtn) {
+                closeBtn = document.createElement('button');
+                closeBtn.className = 'panel-close-btn';
+                closeBtn.title = '关闭此网页';
+                closeBtn.innerHTML = '✕';
+                closeBtn.addEventListener('click', () => {
+                    activateWebPanel(slot.webType); // 切换就是关闭
+                });
+                panel.querySelector('.panel-header').appendChild(closeBtn);
+            }
+        } else {
+            const mi = slot.index;
+            panels[i].messages.style.display = '';
+
+            const webview = panel.querySelector('.panel-webview');
+            if (webview) {
+                const iframe = webview.querySelector('iframe');
+                if (iframe) iframe.src = '';
+                webview.style.display = 'none';
+            }
+
+            // 移除关闭按钮
+            const closeBtn = panel.querySelector('.panel-close-btn');
+            if (closeBtn) closeBtn.remove();
+
+            const m = state.settings.models[mi];
+            const typeLabel = MODEL_TYPE_LABELS[m.type] || m.type;
+            const labels = ['AI 助手 1', 'AI 助手 2', 'AI 助手 3'];
+            panels[i].name.textContent = m.name ? `${typeLabel}: ${m.name}` : labels[mi];
+            panels[i].status.textContent = '就绪';
+            panels[i].status.style.color = '';
+
+            const iconEl = panel.querySelector('.panel-icon');
+            const icons = ['🤖', '🔮', '✨'];
+            if (iconEl) iconEl.textContent = icons[mi];
+        }
+    }
+
+    updateInputPlaceholder();
+}
+
+function updateInputPlaceholder() {
+    const modelNames = ['模型 1', '模型 2', '模型 3'];
+    const enabledNames = state.enabledModels.map((en, i) => en ? modelNames[i] : null).filter(Boolean);
+    const webNames = state.webPanels.map(wt => AI_WEB_URLS[wt]?.name).filter(Boolean);
+    const allNames = [...enabledNames, ...webNames];
+    const count = allNames.length;
+
+    if (count === 0) {
+        dom.chatInput.placeholder = '请先选择至少一个模型...';
+    } else {
+        dom.chatInput.placeholder = `输入你的问题，${count} 个面板（${allNames.join('、')}）将同时回答...`;
+    }
+}
+
+function activateWebPanel(webType) {
+    const webConfig = AI_WEB_URLS[webType];
+    if (!webConfig) return;
+
+    const existingIndex = state.webPanels.indexOf(webType);
+    if (existingIndex >= 0) {
+        state.webPanels.splice(existingIndex, 1);
+        recalcPanelSlots();
+        updateAIWebButtonState();
+        showToast(`已关闭${webConfig.name}`, 'success');
+        return;
+    }
+
+    if (getTotalDisplayCount() >= 3) {
+        showToast('❌ 最多同时显示3个面板', 'error');
+        return;
+    }
+
+    state.webPanels.push(webType);
+    recalcPanelSlots();
+    updateAIWebButtonState();
+    showToast(`🌐 已打开${webConfig.name}`, 'success');
+}
+
+function deactivateWebPanel() {
+    state.webPanels = [];
+    recalcPanelSlots();
+    updateAIWebButtonState();
+}
+
+function updateAIWebButtonState() {
+    if (state.webPanels.length === 0) {
+        dom.aiWebBtn.classList.remove('active');
+        dom.aiWebBtn.textContent = '🌐 AI网页';
+    } else {
+        dom.aiWebBtn.classList.add('active');
+        if (state.webPanels.length === 1) {
+            const webConfig = AI_WEB_URLS[state.webPanels[0]];
+            dom.aiWebBtn.textContent = `${webConfig.icon} ${webConfig.name}`;
+        } else {
+            dom.aiWebBtn.textContent = `🌐 ${state.webPanels.length}个网页`;
+        }
+    }
+    // 更新下拉菜单项的高亮状态
+    dom.aiWebDropdown.querySelectorAll('.ai-web-dropdown-item').forEach(item => {
+        const webType = item.dataset.web;
+        const isActive = state.webPanels.includes(webType);
+        item.classList.toggle('active', isActive);
+    });
+}
+
+// ==================== 悬浮网站新窗口 ====================
+function activateFloatWebPanel(webType) {
+    const webConfig = FLOAT_WEB_URLS[webType];
+    if (!webConfig) return;
+
+    const screenWidth = window.screen.availWidth;
+    const screenHeight = window.screen.availHeight;
+    const mode = state.floatGridMode;
+
+    let windowWidth, windowHeight, positions, maxSlots;
+
+    if (mode === 3) {
+        windowWidth = Math.floor(screenWidth / 3);
+        windowHeight = Math.floor(windowWidth * 1.2);
+        positions = [
+            { left: 0, top: 0 },
+            { left: windowWidth, top: 0 },
+            { left: windowWidth * 2, top: 0 },
+        ];
+        maxSlots = 3;
+    } else if (mode === 4) {
+        windowWidth = Math.floor(screenWidth / 2);
+        windowHeight = Math.floor(screenHeight / 2);
+        positions = [
+            { left: 0, top: 0 },
+            { left: windowWidth, top: 0 },
+            { left: 0, top: windowHeight },
+            { left: windowWidth, top: windowHeight },
+        ];
+        maxSlots = 4;
+    } else {
+        windowWidth = Math.floor(screenWidth / 4);
+        windowHeight = Math.floor(windowWidth * 1.2);
+        positions = [
+            { left: 0, top: 0 },
+            { left: windowWidth, top: 0 },
+            { left: windowWidth * 2, top: 0 },
+            { left: windowWidth * 3, top: 0 },
+            { left: 0, top: windowHeight },
+            { left: windowWidth, top: windowHeight },
+            { left: windowWidth * 2, top: windowHeight },
+            { left: windowWidth * 3, top: windowHeight },
+        ];
+        maxSlots = 8;
+    }
+
+    const targetSlot = state.floatWebNextSlot;
+    const pos = positions[targetSlot];
+
+    const newWindow = window.open(
+        webConfig.url,
+        `float_window_${webType}`,
+        `width=${windowWidth},height=${windowHeight},left=${pos.left},top=${pos.top},resizable=yes,scrollbars=yes,status=yes`
+    );
+
+    state.floatWebNextSlot = (state.floatWebNextSlot + 1) % maxSlots;
+    updateFloatWebButtonState();
+
+    if (newWindow) {
+        showToast(`🌐 已在${mode}宫格位置${targetSlot}打开${webConfig.name}`, 'success');
+    } else {
+        showToast('⚠️ 弹窗被浏览器拦截', 'error');
+    }
+}
+
+function updateFloatWebButtonState() {
+    const mode = state.floatGridMode;
+    const next = state.floatWebNextSlot;
+    dom.floatWebBtn.textContent = `🪟 悬浮 ${mode}宫格[${next}]`;
+}
+
+// ==================== 自定义悬浮网页 ====================
+
+function saveCustomFloatWebs() {
+    try { localStorage.setItem('ai-chat-custom-float-webs', JSON.stringify(state.customFloatWebs)); } catch (e) {}
+}
+
+function loadCustomFloatWebs() {
+    try {
+        const saved = localStorage.getItem('ai-chat-custom-float-webs');
+        if (saved) state.customFloatWebs = JSON.parse(saved);
+    } catch (e) {}
+}
+
+/** 动态渲染悬浮下拉菜单中的自定义网页项（现在合并到 renderFloatWebDropdown 中） */
+function renderCustomFloatWebItems() {
+    // 自定义网站现在由 renderFloatWebDropdown 统一渲染
+}
+
+// ==================== AI网页和悬浮网页动态渲染 + 拖拽排序 ====================
+
+const AI_WEB_URLS = {
+    doubao: { name: '豆包网页', icon: '🤖', url: 'https://www.doubao.com/chat/' },
+    kimi: { name: 'Kimi网页', icon: '🌙', url: 'https://kimi.moonshot.cn/' },
+    kling: { name: '可灵AI', icon: '✨', url: 'https://klingai.com/app/omni/new?model=video' },
+    huaban: { name: '花瓣', icon: '🌸', url: 'https://huaban.com/' },
+    zcool: { name: '站酷', icon: '🎨', url: 'https://www.zcool.com.cn/' },
+    uisdc: { name: '优设网', icon: '📐', url: 'https://www.uisdc.com/' },
+    haiyiart: { name: '海艺Art', icon: '🌊', url: 'https://www.haiyi.art/' },
+    liblib: { name: 'LibLib生图', icon: '🎨', url: 'https://www.liblib.art/' },
+};
+
+const FLOAT_WEB_URLS = {
+    qianwen: { name: '通义千问', icon: '💬', url: 'https://www.qianwen.com/?code=i0lrjzx1fc' },
+    jimeng: { name: '即梦', icon: '🎬', url: 'https://jimeng.jianying.com/' },
+    qingying: { name: '智谱清影', icon: '🧠', url: 'https://chatglm.cn/' },
+    chatgpt: { name: 'ChatGPT', icon: '🤖', url: 'https://chatgpt.com/' },
+    gemini: { name: 'Gemini', icon: '🌟', url: 'https://gemini.google.com/app' },
+    lovart: { name: 'Lovart', icon: '🎨', url: 'https://www.lovart.ai/zh' },
+    clouth: { name: 'Clouth Art', icon: '🖼️', url: 'https://test-nano.clouth.art/' },
+    oiioii: { name: 'Oiioii AI', icon: '🔮', url: 'https://www.oiioii.ai/home' },
+};
+
+function saveWebOrders() {
+    try {
+        localStorage.setItem('ai-chat-web-orders', JSON.stringify({
+            aiWebOrder: state.aiWebOrder,
+            floatWebOrder: state.floatWebOrder,
+        }));
+    } catch (e) {}
+}
+
+function saveFloatMixedOrder() {
+    try {
+        if (state.floatMixedOrder) {
+            localStorage.setItem('ai-chat-float-mixed-order', JSON.stringify(state.floatMixedOrder));
+        }
+    } catch (e) {}
+}
+
+function loadFloatMixedOrder() {
+    try {
+        const saved = localStorage.getItem('ai-chat-float-mixed-order');
+        if (saved) {
+            state.floatMixedOrder = JSON.parse(saved);
+        }
+    } catch (e) {}
+}
+
+function loadWebOrders() {
+    try {
+        const saved = localStorage.getItem('ai-chat-web-orders');
+        if (saved) {
+            const data = JSON.parse(saved);
+            if (data.aiWebOrder) state.aiWebOrder = data.aiWebOrder;
+            if (data.floatWebOrder) state.floatWebOrder = data.floatWebOrder;
+        }
+    } catch (e) {}
+    
+    // 同步新添加的网站到顺序列表
+    const defaultFloatOrder = ['qianwen','jimeng','qingying','chatgpt','gemini','lovart','clouth','oiioii'];
+    defaultFloatOrder.forEach(key => {
+        if (!state.floatWebOrder.includes(key)) {
+            state.floatWebOrder.push(key);
+        }
+    });
+}
+
+/** 渲染AI网页下拉菜单 */
+function renderAIWebDropdown() {
+    dom.aiWebDropdown.innerHTML = '';
+    state.aiWebOrder.forEach((key, index) => {
+        const config = AI_WEB_URLS[key];
+        if (!config) return;
+        const item = createDraggableItem(key, config, 'ai', index);
+        dom.aiWebDropdown.appendChild(item);
+    });
+    setupDragAndDrop(dom.aiWebDropdown, 'ai');
+}
+
+/** 渲染悬浮网页下拉菜单（内置 + 自定义，统一拖拽排序） */
+function renderFloatWebDropdown() {
+    dom.floatWebDropdown.innerHTML = '';
+    
+    // 获取有效的自定义网站
+    const validCustomWebs = state.customFloatWebs.filter(w => w.name && w.url);
+    
+    // 使用混合顺序数组（如果存在），否则按默认顺序构建
+    let allItems = [];
+    
+    if (state.floatMixedOrder && state.floatMixedOrder.length > 0) {
+        // 使用保存的混合顺序
+        state.floatMixedOrder.forEach((itemData, idx) => {
+            if (itemData.type === 'builtin' && FLOAT_WEB_URLS[itemData.key]) {
+                allItems.push({
+                    type: 'builtin',
+                    key: itemData.key,
+                    config: FLOAT_WEB_URLS[itemData.key],
+                    index: idx
+                });
+            } else if (itemData.type === 'custom') {
+                const customWeb = validCustomWebs.find(w => w.name === itemData.name && w.url === itemData.url);
+                if (customWeb) {
+                    allItems.push({
+                        type: 'custom',
+                        key: `__custom_${validCustomWebs.indexOf(customWeb)}`,
+                        config: { name: customWeb.name, icon: '🔗' },
+                        index: idx,
+                        webData: customWeb
+                    });
+                }
+            }
+        });
+    } else {
+        // 默认顺序：先内置后自定义
+        state.floatWebOrder.forEach((key, idx) => {
+            if (FLOAT_WEB_URLS[key]) {
+                allItems.push({ type: 'builtin', key, config: FLOAT_WEB_URLS[key], index: idx });
+            }
+        });
+        validCustomWebs.forEach((w, idx) => {
+            allItems.push({
+                type: 'custom',
+                key: `__custom_${idx}`,
+                config: { name: w.name, icon: '🔗' },
+                index: allItems.length,
+                webData: w
+            });
+        });
+    }
+    
+    // 渲染所有项
+    allItems.forEach((item) => {
+        const el = createDraggableFloatItem(item);
+        dom.floatWebDropdown.appendChild(el);
+    });
+    
+    setupFloatDragAndDrop(dom.floatWebDropdown, allItems);
+}
+
+/** 创建悬浮网页的可拖拽项（支持内置和自定义） */
+function createDraggableFloatItem(item) {
+    const div = document.createElement('div');
+    div.className = 'ai-web-dropdown-item';
+    div.draggable = true;
+    div.dataset.key = item.key;
+    div.dataset.type = item.type;
+    div.dataset.index = item.index;
+    div.title = '点击打开小弹窗';
+    div.innerHTML = `
+        <span class="ai-web-icon">${item.config.icon}</span>
+        <span class="ai-web-label">${escapeHtml(item.config.name)}</span>
+        <span class="drag-handle">⋮⋮</span>
+    `;
+
+    div.addEventListener('click', (e) => {
+        if (e.target.classList.contains('drag-handle')) return;
+        if (item.type === 'custom') {
+            openCustomFloatWeb(item.webData);
+        } else {
+            activateFloatWebPanel(item.key);
+        }
+        dom.floatWebDropdown.classList.remove('show');
+    });
+
+    return div;
+}
+
+/** 设置悬浮网页的拖拽事件（支持内置和自定义混合排序） */
+function setupFloatDragAndDrop(container, allItems) {
+    let draggedItem = null;
+    let draggedIndex = null;
+
+    container.querySelectorAll('.ai-web-dropdown-item').forEach(item => {
+        item.addEventListener('dragstart', (e) => {
+            draggedItem = item;
+            draggedIndex = parseInt(item.dataset.index);
+            item.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+        });
+
+        item.addEventListener('dragend', () => {
+            item.classList.remove('dragging');
+            container.querySelectorAll('.ai-web-dropdown-item').forEach(i => i.classList.remove('drag-over'));
+            draggedItem = null;
+            draggedIndex = null;
+        });
+
+        item.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            if (!draggedItem || item === draggedItem) return;
+            item.classList.add('drag-over');
+        });
+
+        item.addEventListener('dragleave', () => {
+            item.classList.remove('drag-over');
+        });
+
+        item.addEventListener('drop', (e) => {
+            e.preventDefault();
+            item.classList.remove('drag-over');
+            if (!draggedItem || item === draggedItem) return;
+
+            const targetIndex = parseInt(item.dataset.index);
+            const draggedType = draggedItem.dataset.type;
+            const targetType = item.dataset.type;
+            
+            // 重新排序 allItems 数组
+            const [moved] = allItems.splice(draggedIndex, 1);
+            allItems.splice(targetIndex, 0, moved);
+            
+            // 更新索引
+            allItems.forEach((it, idx) => it.index = idx);
+            
+            // 保存混合顺序
+            state.floatMixedOrder = allItems.map(it => ({
+                type: it.type,
+                key: it.type === 'builtin' ? it.key : undefined,
+                name: it.type === 'custom' ? it.webData.name : undefined,
+                url: it.type === 'custom' ? it.webData.url : undefined
+            }));
+            
+            // 同时更新传统格式（兼容）
+            const newBuiltinOrder = [];
+            const newCustomWebs = [{name:'',url:''},{name:'',url:''},{name:'',url:''}];
+            let customIdx = 0;
+            
+            allItems.forEach(it => {
+                if (it.type === 'builtin') {
+                    newBuiltinOrder.push(it.key);
+                } else if (it.type === 'custom' && customIdx < 3) {
+                    newCustomWebs[customIdx] = it.webData;
+                    customIdx++;
+                }
+            });
+            
+            state.floatWebOrder = newBuiltinOrder;
+            state.customFloatWebs = newCustomWebs;
+            saveWebOrders();
+            saveCustomFloatWebs();
+            saveFloatMixedOrder();
+            
+            // 重新渲染
+            renderFloatWebDropdown();
+            showToast('排序已更新', 'success');
+        });
+    });
+}
+
+/** 创建可拖拽的菜单项 */
+function createDraggableItem(key, config, type, index) {
+    const item = document.createElement('div');
+    item.className = 'ai-web-dropdown-item';
+    item.draggable = true;
+    item.dataset.web = key;
+    item.dataset.index = index;
+    item.title = type === 'ai' ? '左键嵌入，右键悬浮窗' : '点击打开小弹窗';
+    item.innerHTML = `
+        <span class="ai-web-icon">${config.icon}</span>
+        <span class="ai-web-label">${config.name}</span>
+        <span class="drag-handle">⋮⋮</span>
+    `;
+
+    // 点击事件
+    item.addEventListener('click', (e) => {
+        if (e.target.classList.contains('drag-handle')) return;
+        if (type === 'ai') {
+            activateWebPanel(key);
+        } else {
+            activateFloatWebPanel(key);
+        }
+    });
+
+    // 右键事件（AI网页专用）
+    if (type === 'ai') {
+        item.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            activateFloatWebPanel(key);
+        });
+    }
+
+    return item;
+}
+
+/** 设置拖拽事件 */
+function setupDragAndDrop(container, type) {
+    let draggedItem = null;
+    let draggedIndex = null;
+
+    container.querySelectorAll('.ai-web-dropdown-item').forEach(item => {
+        item.addEventListener('dragstart', (e) => {
+            draggedItem = item;
+            draggedIndex = parseInt(item.dataset.index);
+            item.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+        });
+
+        item.addEventListener('dragend', () => {
+            item.classList.remove('dragging');
+            container.querySelectorAll('.ai-web-dropdown-item').forEach(i => i.classList.remove('drag-over'));
+            draggedItem = null;
+            draggedIndex = null;
+        });
+
+        item.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            if (!draggedItem || item === draggedItem) return;
+            item.classList.add('drag-over');
+        });
+
+        item.addEventListener('dragleave', () => {
+            item.classList.remove('drag-over');
+        });
+
+        item.addEventListener('drop', (e) => {
+            e.preventDefault();
+            item.classList.remove('drag-over');
+            if (!draggedItem || item === draggedItem) return;
+
+            const targetIndex = parseInt(item.dataset.index);
+            const orderArray = type === 'ai' ? state.aiWebOrder : state.floatWebOrder;
+
+            // 交换位置
+            const [moved] = orderArray.splice(draggedIndex, 1);
+            orderArray.splice(targetIndex, 0, moved);
+
+            // 保存并重新渲染
+            saveWebOrders();
+            if (type === 'ai') renderAIWebDropdown();
+            else renderFloatWebDropdown();
+
+            showToast('排序已更新', 'success');
+        });
+    });
+}
+
+/** 打开自定义悬浮网页（使用与内置网站相同的宫格计算） */
+function openCustomFloatWeb(web) {
+    const screenWidth = window.screen.availWidth;
+    const screenHeight = window.screen.availHeight;
+    const slot = state.floatWebNextSlot;
+    const mode = state.floatGridMode;
+
+    let windowWidth, windowHeight, positions, maxSlots;
+    if (mode === 3) {
+        windowWidth = Math.floor(screenWidth / 3);
+        windowHeight = Math.floor(windowWidth * 1.2);
+        positions = [
+            { left: 0, top: 0 },
+            { left: windowWidth, top: 0 },
+            { left: windowWidth * 2, top: 0 },
+        ];
+        maxSlots = 3;
+    } else if (mode === 4) {
+        windowWidth = Math.floor(screenWidth / 2);
+        windowHeight = Math.floor(screenHeight / 2);
+        positions = [
+            { left: 0, top: 0 },
+            { left: windowWidth, top: 0 },
+            { left: 0, top: windowHeight },
+            { left: windowWidth, top: windowHeight },
+        ];
+        maxSlots = 4;
+    } else {
+        windowWidth = Math.floor(screenWidth / 4);
+        windowHeight = Math.floor(windowWidth * 1.2);
+        positions = [
+            { left: 0, top: 0 },
+            { left: windowWidth, top: 0 },
+            { left: windowWidth * 2, top: 0 },
+            { left: windowWidth * 3, top: 0 },
+            { left: 0, top: windowHeight },
+            { left: windowWidth, top: windowHeight },
+            { left: windowWidth * 2, top: windowHeight },
+            { left: windowWidth * 3, top: windowHeight },
+        ];
+        maxSlots = 8;
+    }
+
+    const targetSlot = slot % maxSlots;
+    const pos = positions[targetSlot];
+    const win = window.open(
+        web.url,
+        `float_custom_${Date.now()}`,
+        `width=${windowWidth},height=${windowHeight},left=${pos.left},top=${pos.top},resizable=yes,scrollbars=yes,status=yes`
+    );
+    if (!win) {
+        showToast('⚠️ 弹窗被浏览器拦截', 'error');
+    }
+    state.floatWebNextSlot = (targetSlot + 1) % maxSlots;
+    updateFloatWebButtonState();
+}
+
+function isWebPanel(slotIndex) {
+    const slot = state.panelSlots[slotIndex];
+    return slot && slot.type === 'web';
+}
+
+function getModelIndexAtSlot(slotIndex) {
+    const slot = state.panelSlots[slotIndex];
+    return (slot && slot.type === 'model') ? slot.index : -1;
+}
+
+// ==================== 悬浮小窗口 ====================
+let floatingWebState = {
+    isOpen: false,
+    size: 'small', // 'small' | 'large'
+    opacity: 'high', // 'low' | 'medium' | 'high'
+    dragOffset: { x: 0, y: 0 }
+};
+
+function openFloatingWeb(webType) {
+    const webConfig = AI_WEB_URLS[webType];
+    if (!webConfig) return;
+
+    dom.floatingWebTitle.textContent = webConfig.name;
+    dom.floatingWebIframe.src = webConfig.url;
+    
+    dom.floatingWebWindow.classList.remove('small', 'large');
+    dom.floatingWebWindow.classList.add(floatingWebState.size);
+    
+    dom.floatingWebWindow.classList.remove('opacity-low', 'opacity-medium', 'opacity-high');
+    dom.floatingWebWindow.classList.add('opacity-' + floatingWebState.opacity);
+    
+    dom.floatingWebWindow.style.display = 'flex';
+    dom.floatingWebWindow.style.left = '100px';
+    dom.floatingWebWindow.style.top = '100px';
+    
+    floatingWebState.isOpen = true;
+    showToast(`🌐 已打开${webConfig.name}悬浮窗`, 'success');
+}
+
+function closeFloatingWeb() {
+    dom.floatingWebWindow.style.display = 'none';
+    dom.floatingWebIframe.src = '';
+    floatingWebState.isOpen = false;
+}
+
+function toggleFloatingWebSize() {
+    floatingWebState.size = floatingWebState.size === 'small' ? 'large' : 'small';
+    dom.floatingWebWindow.classList.remove('small', 'large');
+    dom.floatingWebWindow.classList.add(floatingWebState.size);
+}
+
+function toggleFloatingWebOpacity() {
+    const levels = ['low', 'medium', 'high'];
+    const currentIndex = levels.indexOf(floatingWebState.opacity);
+    floatingWebState.opacity = levels[(currentIndex + 1) % levels.length];
+    
+    dom.floatingWebWindow.classList.remove('opacity-low', 'opacity-medium', 'opacity-high');
+    dom.floatingWebWindow.classList.add('opacity-' + floatingWebState.opacity);
+}
+
+function initFloatingWebDrag() {
+    let isDragging = false;
+    let startX = 0;
+    let startY = 0;
+
+    dom.floatingWebHeader.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        startX = e.clientX;
+        startY = e.clientY;
+        const rect = dom.floatingWebWindow.getBoundingClientRect();
+        floatingWebState.dragOffset.x = rect.left;
+        floatingWebState.dragOffset.y = rect.top;
+        dom.floatingWebHeader.style.cursor = 'grabbing';
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        dom.floatingWebWindow.style.left = (floatingWebState.dragOffset.x + dx) + 'px';
+        dom.floatingWebWindow.style.top = (floatingWebState.dragOffset.y + dy) + 'px';
+    });
+
+    document.addEventListener('mouseup', () => {
+        isDragging = false;
+        dom.floatingWebHeader.style.cursor = 'move';
+    });
+}
+
+function openSettings() { applySettingsToUI(); dom.settingsOverlay.classList.add('open'); }
+function closeSettings() { dom.settingsOverlay.classList.remove('open'); }
+
+function saveSettings() {
+    saveSettingsToState();
+    state.webSearchInstance = state.settings.webSearchInstance || '';
+    persistSettings();
+    updatePanelNames();
+    renderCustomFloatWebItems();
+    closeSettings();
+    showToast('设置已保存', 'success');
+}
+
+function resetSettings() {
+    state.settings = {
+        globalApiKey: '', globalBaseUrl: 'https://api.openai.com/v1', systemPrompt: '',
+        models: [
+            { type: 'openai', name: 'gpt-4o-mini', apiKey: '', baseUrl: '' },
+            { type: 'openai', name: 'gpt-4o-mini', apiKey: '', baseUrl: '' },
+            { type: 'openai', name: 'gpt-4o-mini', apiKey: '', baseUrl: '' },
+        ],
+        translate: { apiKey: '', baseUrl: '', modelName: 'doubao-pro-32k' },
+        verifyModel: '0',
+        webSearchInstance: '',
+        defaultView: 'doubao',
+    };
+    state.defaultView = 'doubao';
+    applySettingsToUI();
+    persistSettings();
+    showToast('已恢复默认设置', 'success');
+}
+
+// ==================== 模型选择切换 ====================
+
+/** 更新模型切换按钮的高亮状态 */
+function updateModelToggleButtons() {
+    document.querySelectorAll('.model-toggle-btn').forEach(btn => {
+        const idx = parseInt(btn.dataset.model);
+        btn.classList.toggle('active', state.enabledModels[idx]);
+    });
+}
+
+/** 根据已启用的模型和网页更新面板 */
+function applyModelToggleState() {
+    recalcPanelSlots();
+}
+
+/** 切换单个模型的启用/禁用 */
+function toggleModel(index) {
+    if (state.enabledModels[index]) {
+        // 关闭模型：允许全部关闭
+        state.enabledModels[index] = false;
+    } else {
+        // 开启模型：检查总数是否已满
+        if (getTotalDisplayCount() >= 3) {
+            showToast('❌ 最多同时显示3个面板', 'error');
+            return;
+        }
+        state.enabledModels[index] = true;
+    }
+    updateModelToggleButtons();
+    recalcPanelSlots();
+
+    // 保存到当前会话
+    const session = getSession(currentSessionId);
+    if (session) {
+        session.enabledModels = [...state.enabledModels];
+        saveSessions();
+    }
+}
+
+/** 切换输入框显示/隐藏 */
+function toggleInputVisibility() {
+    state.inputHidden = !state.inputHidden;
+    dom.chatInputArea.classList.toggle('hidden', state.inputHidden);
+    dom.chatBody.classList.toggle('input-hidden', state.inputHidden);
+
+    // 隐藏时允许全部模型关闭，显示时确保至少有一个模型
+    if (!state.inputHidden) {
+        const enabledCount = state.enabledModels.filter(Boolean).length;
+        if (enabledCount === 0) {
+            state.enabledModels[0] = true;
+            updateModelToggleButtons();
+            recalcPanelSlots();
+            showToast('已自动启用模型 1', '');
+        }
+    }
+}
+
+// ==================== 聊天功能 ====================
+
+function addUserMessage(panelIndex, text, images = []) {
+    addTimeSeparatorIfNeeded(panelIndex, Date.now());
+    const div = document.createElement('div');
+    div.className = 'message user';
+    if (text) {
+        const textEl = document.createElement('span');
+        textEl.textContent = text;
+        div.appendChild(textEl);
+    }
+    // 显示图片
+    for (const img of images) {
+        const imgEl = document.createElement('img');
+        imgEl.className = 'message-image';
+        imgEl.src = img.dataUrl;
+        imgEl.alt = img.name;
+        div.appendChild(imgEl);
+    }
+    panels[panelIndex].messages.appendChild(div);
+    scrollPanelBottom(panelIndex);
+}
+
+function addAssistantMessage(panelIndex) {
+    addTimeSeparatorIfNeeded(panelIndex, Date.now());
+    const div = document.createElement('div');
+    div.className = 'message assistant streaming';
+    div.dataset.msgTime = Date.now();
+    // 添加停止按钮（仅在 streaming 时显示）
+    const stopBtn = document.createElement('button');
+    stopBtn.className = 'msg-stop-btn';
+    stopBtn.textContent = '⏹';
+    stopBtn.title = '停止生成';
+    stopBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (state.abortControllers[panelIndex]) {
+            state.abortControllers[panelIndex].abort();
+            // 立即清理，不依赖异步的 AbortError
+            abortCleanup(panelIndex, div);
+        }
+    });
+    div.appendChild(stopBtn);
+    panels[panelIndex].messages.appendChild(div);
+    scrollPanelBottom(panelIndex);
+    return div;
+}
+
+function updateAssistantMessage(element, text) {
+    // 过滤掉豆包回复中混入的操作按钮图标字符（带变体选择器一起清除，防止乱码）
+    const cleaned = text
+        .replace(/\u{1F504}/gu, '')           // 🔄
+        .replace(/\u{1F4CB}/gu, '')            // 📋
+        .replace(/\u{1F5D1}\uFE0F?/gu, '')     // 🗑️（含可选变体选择器）
+        .replace(/[\u{2B50}\u{2606}]/gu, '')   // ⭐ ☆
+        .replace(/\u{23F9}/gu, '');            // ⏹
+    const html = cleaned.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>');
+    // 将内容放在单独的子容器中，避免覆盖停止按钮
+    let contentEl = element.querySelector('.msg-content');
+    if (!contentEl) {
+        contentEl = document.createElement('div');
+        contentEl.className = 'msg-content';
+        // 放在停止按钮之后
+        const stopBtn = element.querySelector('.msg-stop-btn');
+        if (stopBtn) {
+            stopBtn.after(contentEl);
+        } else {
+            element.prepend(contentEl);
+        }
+    }
+    contentEl.innerHTML = '<p>' + html + '</p>';
+    const container = element.closest('.panel-messages');
+    if (container) container.scrollTop = container.scrollHeight;
+}
+
+function finishAssistantMessage(element) {
+    element.classList.remove('streaming');
+    // 移除停止按钮
+    const stopBtn = element.querySelector('.msg-stop-btn');
+    if (stopBtn) stopBtn.remove();
+
+    // 检查是否已有操作按钮
+    if (element.querySelector('.msg-actions')) return;
+
+    // 设置关键词
+    const text = element.textContent?.replace(/🔄|📋|🗑️/g, '').trim();
+    if (text && text.length > 5 && !element.dataset.keyword) {
+        element.dataset.keyword = extractKeyword(text);
+    }
+
+    // 获取面板索引
+    const panelIndex = Array.from(document.querySelectorAll('.chat-panel')).indexOf(element.closest('.chat-panel'));
+
+    // 添加复制、删除和重新生成按钮
+    const actions = document.createElement('div');
+    actions.className = 'msg-actions';
+    actions.innerHTML = `
+        <button class="msg-action-btn msg-regenerate-btn" title="重新生成">🔄</button>
+        <button class="msg-action-btn msg-copy-btn" title="复制">📋</button>
+        <button class="msg-action-btn msg-bookmark-btn" title="收藏消息">☆</button>
+        <button class="msg-action-btn msg-delete-btn" title="删除">🗑️</button>
+    `;
+    element.appendChild(actions);
+
+    // 恢复收藏状态
+    const msgTime = parseInt(element.dataset.msgTime);
+    if (msgTime && state.messageBookmarks.some(b => b.msgTime === msgTime)) {
+        const bmBtn = actions.querySelector('.msg-bookmark-btn');
+        if (bmBtn) bmBtn.textContent = '⭐';
+    }
+
+    // 复制
+    actions.querySelector('.msg-copy-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        const text = element.querySelector('p, span')?.textContent || element.textContent || '';
+        // 去掉按钮文字
+        const cleanText = text.replace(/📋|🗑️/g, '').trim();
+        copyText(cleanText);
+    });
+
+    // 收藏消息
+    actions.querySelector('.msg-bookmark-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        const panelIndex = Array.from(document.querySelectorAll('.chat-panel')).indexOf(element.closest('.chat-panel'));
+        const session = getSession(currentSessionId);
+        if (!session) return showToast('请先开始对话', '');
+        const msgTime = parseInt(element.dataset.msgTime) || Date.now();
+        if (!element.dataset.msgTime) element.dataset.msgTime = String(msgTime);
+        const text = (element.querySelector('.msg-content')?.textContent || element.textContent || '').replace(/☆|⭐/g, '').trim();
+        const panelLabels = { 0: '模型1', 1: '模型2', 2: '模型3' };
+        const isStarred = toggleMessageBookmark(
+            session.id, panelIndex, msgTime, text,
+            session.title || session.name || '未命名',
+            panelLabels[panelIndex] || `模型${panelIndex + 1}`
+        );
+        e.target.textContent = isStarred ? '⭐' : '☆';
+        showToast(isStarred ? '已收藏该消息' : '已取消收藏', 'success');
+    });
+
+    // 删除
+    actions.querySelector('.msg-delete-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        const panelIndex = Array.from(document.querySelectorAll('.chat-panel')).indexOf(element.closest('.chat-panel'));
+        const session = getSession(currentSessionId);
+
+        // 在 DOM 中找到前一条用户消息并删除
+        let prevEl = element.previousElementSibling;
+        while (prevEl && !prevEl.classList.contains('message')) {
+            prevEl = prevEl.previousElementSibling;
+        }
+        if (prevEl && prevEl.classList.contains('user')) {
+            // 也移除其衍生询问
+            const prevSug = prevEl.nextElementSibling;
+            if (prevSug && prevSug.classList.contains('followup-suggestions')) prevSug.remove();
+            prevEl.remove();
+        }
+
+        // 从会话中移除该消息及其对应的用户提问
+        if (session) {
+            const idx = session.messages.findIndex(m =>
+                m.panel === panelIndex && m.role === 'assistant'
+                && element.textContent.includes(m.text?.substring(0, 20) || '')
+            );
+            if (idx >= 0) {
+                // 找到该助理消息前最近的同面板用户消息
+                let userIdx = -1;
+                for (let i = idx - 1; i >= 0; i--) {
+                    if (session.messages[i].panel === panelIndex && session.messages[i].role === 'user') {
+                        userIdx = i;
+                        break;
+                    }
+                }
+                // 先删用户（索引靠前），再删助理
+                if (userIdx >= 0) {
+                    session.messages.splice(userIdx, 1);
+                    // 删除用户后助理索引减1
+                    const adjIdx = session.messages.findIndex(m =>
+                        m.panel === panelIndex && m.role === 'assistant'
+                        && element.textContent.includes(m.text?.substring(0, 20) || '')
+                    );
+                    if (adjIdx >= 0) session.messages.splice(adjIdx, 1);
+                } else {
+                    session.messages.splice(idx, 1);
+                }
+                saveSessions();
+            }
+        }
+        // 移除衍生询问
+        const sug = element.nextElementSibling;
+        if (sug && sug.classList.contains('followup-suggestions')) sug.remove();
+        element.remove();
+    });
+
+    // 重新生成
+    actions.querySelector('.msg-regenerate-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (state.isSending) return;
+        const panelIndex = Array.from(document.querySelectorAll('.chat-panel')).indexOf(element.closest('.chat-panel'));
+        // 找到该面板最后一条用户消息
+        const panel = element.closest('.chat-panel');
+        const msgs = panel.querySelectorAll('.message.user');
+        const lastUserMsg = msgs[msgs.length - 1];
+        if (!lastUserMsg) return;
+        const userText = lastUserMsg.textContent?.trim() || '';
+
+        // 从会话中移除旧回复
+        const session = getSession(currentSessionId);
+        if (session) {
+            const idx = session.messages.findIndex(m =>
+                m.panel === panelIndex && m.role === 'assistant'
+                && element.textContent.includes(m.text?.substring(0, 20) || '')
+            );
+            if (idx >= 0) {
+                session.messages.splice(idx, 1);
+                saveSessions();
+            }
+        }
+        // 移除衍生询问
+        const sug = element.nextElementSibling;
+        if (sug && sug.classList.contains('followup-suggestions')) sug.remove();
+        element.remove();
+
+        // 重新发起请求
+        state.isSending = true;
+        dom.sendBtn.disabled = true;
+        dom.chatInput.disabled = true;
+        const c = new AbortController();
+        state.abortControllers[panelIndex] = c;
+        streamChat(panelIndex, userText, [], c.signal).finally(() => {
+            state.isSending = false;
+            dom.sendBtn.disabled = true;
+            dom.chatInput.disabled = false;
+        });
+    });
+
+    // 生成衍生询问
+    const msgText = element.textContent?.replace(/🔄|📋|🗑️/g, '').trim();
+    if (msgText && msgText.length > 10) {
+        generateFollowups(element, msgText, panelIndex);
+    }
+}
+
+/** 在回答下方追加可折叠的搜索来源列表 */
+function appendSearchSources(msgElement, sources) {
+    if (!sources || sources.length === 0) return;
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'web-search-sources';
+
+    // 折叠头部
+    const header = document.createElement('div');
+    header.className = 'web-search-sources-header';
+    header.innerHTML = `<span>🌐 搜索来源（${sources.length}条）</span><span class="ws-arrow">▶</span>`;
+
+    // 来源列表
+    const body = document.createElement('div');
+    body.className = 'web-search-sources-body';
+    sources.forEach((src, i) => {
+        const item = document.createElement('a');
+        item.className = 'web-search-source-item';
+        item.href = src.url;
+        item.target = '_blank';
+        item.rel = 'noopener noreferrer';
+        item.innerHTML = `
+            <span class="ws-src-index">${i + 1}</span>
+            <span class="ws-src-info">
+                <span class="ws-src-title">${escapeHtml(src.title)}</span>
+                <span class="ws-src-url">${escapeHtml(src.url)}</span>
+            </span>
+        `;
+        body.appendChild(item);
+    });
+
+    header.addEventListener('click', () => {
+        const isOpen = body.classList.toggle('open');
+        header.querySelector('.ws-arrow').classList.toggle('open', isOpen);
+    });
+
+    wrapper.appendChild(header);
+    wrapper.appendChild(body);
+    msgElement.appendChild(wrapper);
+}
+
+/** 为消息生成衍生询问建议（自动尝试所有可用的模型配置） */
+function generateFollowups(element, assistantText, panelIndex) {
+    // 如果已有建议则不重复生成
+    if (element.nextElementSibling?.classList.contains('followup-suggestions')) return;
+
+    // 获取最后一条用户消息
+    const panel = element.closest('.chat-panel');
+    const msgs = panel.querySelectorAll('.message');
+    let lastUser = '';
+    msgs.forEach(m => {
+        if (m.classList.contains('user')) lastUser = m.textContent?.trim() || '';
+    });
+
+    if (!lastUser && !assistantText) return;
+
+    const myGen = state.followupGeneration;
+
+    const prompt = `你是一个对话助手。根据以下用户问题和你的回答，生成3个简短的相关追问（每个不超过15个字），让用户能继续深入对话。
+用户问题：${lastUser?.substring(0, 200)}
+你的回答：${assistantText?.substring(0, 500)}
+
+只返回3个追问，每行一个，不要序号，不要额外说明。每个追问单独成行。`;
+
+    // 收集所有可用的模型配置（按优先级：面板自身 → 全局 → 其他面板）
+    const configs = [];
+    const selfConfig = getModelConfig(panelIndex);
+    if (selfConfig?.apiKey) configs.push(selfConfig);
+
+    // 补充全局
+    if (state.settings.globalApiKey) {
+        configs.push({
+            type: 'openai',
+            modelName: 'gpt-4o-mini',
+            apiKey: state.settings.globalApiKey,
+            baseUrl: (state.settings.globalBaseUrl || 'https://api.openai.com/v1').replace(/\/+$/, ''),
+        });
+    }
+
+    // 补充其他面板（去重）
+    for (let i = 0; i < 3; i++) {
+        if (i === panelIndex) continue;
+        const cfg = getModelConfig(i);
+        if (cfg?.apiKey && !configs.some(c => c.apiKey === cfg.apiKey && c.baseUrl === cfg.baseUrl)) {
+            configs.push(cfg);
+        }
+    }
+
+    // 逐个尝试
+    function tryNext(index) {
+        if (index >= configs.length) return;
+        const config = configs[index];
+
+        fetch(`${config.baseUrl}/chat/completions`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${config.apiKey}`,
+            },
+            body: JSON.stringify({
+                model: config.modelName,
+                messages: [{ role: 'user', content: prompt }],
+                temperature: 0.7,
+                max_tokens: 200,
+            }),
+        })
+        .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+        .then(data => {
+            const text = data.choices?.[0]?.message?.content || '';
+            // 支持换行、逗号、顿号分隔
+            let lines = text.split(/[\n,，、]+/).map(l => l.replace(/^\d+[.、.）)]?\s*/, '').trim()).filter(l => l.length > 2 && l.length < 40);
+            // 也尝试按句号或问号分隔（如果上面没分出3个）
+            if (lines.length < 3) {
+                lines = text.split(/[。？！?！\n]+/).map(l => l.trim()).filter(l => l.length > 2 && l.length < 40);
+            }
+            if (lines.length < 2) { tryNext(index + 1); return; }
+
+            // 轮次已过时，丢弃
+            if (state.followupGeneration !== myGen) return;
+
+            const container = document.createElement('div');
+            container.className = 'followup-suggestions';
+            lines.slice(0, 3).forEach(q => {
+                const chip = document.createElement('span');
+                chip.className = 'followup-chip';
+                chip.textContent = q;
+                chip.addEventListener('click', () => {
+                    dom.chatInput.value = q;
+                    autoResizeInput();
+                    updateSendButton();
+                    dom.chatInput.focus();
+                    sendMessage();
+                });
+                container.appendChild(chip);
+            });
+            element.after(container);
+        })
+        .catch(() => tryNext(index + 1));
+    }
+
+    tryNext(0);
+}
+
+function scrollPanelBottom(index) {
+    const el = panels[index].messages;
+    if (el) el.scrollTop = el.scrollHeight;
+}
+
+// ==================== 全局搜索（跨会话） ====================
+
+let lastSearchQuery = '';
+let searchResultsData = [];
+
+function openGlobalSearch() {
+    dom.searchOverlay.style.display = '';
+    dom.globalSearchInput.value = '';
+    dom.globalSearchResults.innerHTML = '<div class="search-empty">输入关键词搜索所有聊天内容</div>';
+    dom.globalSearchClear.style.display = 'none';
+    setTimeout(() => dom.globalSearchInput.focus(), 100);
+}
+
+function closeGlobalSearch() {
+    dom.searchOverlay.style.display = 'none';
+    dom.globalSearchInput.value = '';
+    dom.globalSearchClear.style.display = 'none';
+    dom.globalSearchResults.innerHTML = '<div class="search-empty">输入关键词搜索所有聊天内容</div>';
+    lastSearchQuery = '';
+    searchResultsData = [];
+    clearSearchHighlights();
+}
+
+function clearGlobalSearch() {
+    dom.globalSearchInput.value = '';
+    dom.globalSearchClear.style.display = 'none';
+    dom.globalSearchResults.innerHTML = '<div class="search-empty">输入关键词搜索所有聊天内容</div>';
+    lastSearchQuery = '';
+    searchResultsData = [];
+    clearSearchHighlights();
+    dom.globalSearchInput.focus();
+}
+
+function clearSearchHighlights() {
+    document.querySelectorAll('.message.search-highlight').forEach(el => el.classList.remove('search-highlight'));
+}
+
+function doGlobalSearch(query) {
+    if (!query) {
+        dom.globalSearchClear.style.display = 'none';
+        dom.globalSearchResults.innerHTML = '<div class="search-empty">输入关键词搜索所有聊天内容</div>';
+        lastSearchQuery = '';
+        searchResultsData = [];
+        clearSearchHighlights();
+        return;
+    }
+    dom.globalSearchClear.style.display = 'flex';
+    clearSearchHighlights();
+
+    const ql = query.toLowerCase();
+    lastSearchQuery = query;
+    const results = [];
+
+    // 遍历所有会话
+    const sessions = getSessions();
+    sessions.forEach(session => {
+        if (!session.messages) return;
+        session.messages.forEach((msg, idx) => {
+            const text = (msg.text || '');
+            const textLower = text.toLowerCase();
+            if (!textLower.includes(ql)) return;
+
+            // 计算匹配位置附近的片段
+            const matchIdx = textLower.indexOf(ql);
+            const snippetStart = Math.max(0, matchIdx - 30);
+            const snippetEnd = Math.min(text.length, matchIdx + ql.length + 60);
+            let snippet = text.substring(snippetStart, snippetEnd);
+            // 如果片段被截断，加...
+            if (snippetStart > 0) snippet = '...' + snippet;
+            if (snippetEnd < text.length) snippet += '...';
+            // 高亮匹配词
+            const highlighted = snippet.replace(
+                new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'),
+                m => `<em>${m}</em>`
+            );
+
+            const panelLabels = { 0: '模型1', 1: '模型2', 2: '模型3' };
+            const roleLabel = msg.role === 'user' ? '用户' : 'AI';
+            const roleClass = msg.role === 'user' ? 'sr-user' : 'sr-assistant';
+
+            results.push({
+                sessionId: session.id,
+                sessionName: session.title || session.name || '未命名',
+                role: msg.role,
+                roleLabel,
+                roleClass,
+                panelIndex: msg.panel,
+                panelLabel: panelLabels[msg.panel] || `模型${msg.panel + 1}`,
+                msgIndex: idx,
+                snippet: highlighted,
+                fullMatch: text.substring(matchIdx, matchIdx + ql.length),
+            });
+        });
+    });
+
+    // 按会话分组排序
+    results.sort((a, b) => a.sessionName.localeCompare(b.sessionName) || a.msgIndex - b.msgIndex);
+
+    searchResultsData = results;
+
+    if (results.length === 0) {
+        dom.globalSearchResults.innerHTML = `<div class="search-empty">未找到包含 "<strong>${query}</strong>" 的内容</div>`;
+        return;
+    }
+
+    // 渲染结果列表
+    let html = `<div class="search-result-count">共 ${results.length} 条结果</div>`;
+    results.forEach((r, ri) => {
+        html += `
+            <div class="search-result-item" data-result-index="${ri}">
+                <div class="sr-header">
+                    <span class="sr-role-tag ${r.roleClass}">${r.roleLabel} · ${r.panelLabel}</span>
+                    <span class="sr-session">📄 ${escapeHtml(r.sessionName)}</span>
+                </div>
+                <div class="sr-text">${r.snippet}</div>
+            </div>
+        `;
+    });
+    dom.globalSearchResults.innerHTML = html;
+
+    // 点击结果跳转
+    dom.globalSearchResults.querySelectorAll('.search-result-item').forEach(item => {
+        item.addEventListener('click', () => {
+            const ri = parseInt(item.dataset.resultIndex);
+            const r = searchResultsData[ri];
+            if (!r) return;
+            closeGlobalSearch();
+            // 切换到对应会话
+            if (currentSessionId !== r.sessionId) {
+                switchSession(r.sessionId);
+            }
+            // 等待 DOM 渲染后定位消息
+            setTimeout(() => {
+                scrollToMessage(r.sessionId, r.panelIndex, r.msgIndex, r.role, r.fullMatch);
+            }, 150);
+        });
+    });
+}
+
+function scrollToMessage(sessionId, panelIndex, msgIndex, role, matchText) {
+    const panel = panels[panelIndex];
+    if (!panel) return;
+    const msgs = panel.messages.querySelectorAll('.message');
+    // 从后往前找匹配的消息
+    for (let i = msgs.length - 1; i >= 0; i--) {
+        const el = msgs[i];
+        if (!el.classList.contains(role)) continue;
+        const text = el.textContent?.trim() || '';
+        if (text.includes(matchText)) {
+            el.classList.add('search-highlight');
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            setTimeout(() => el.classList.remove('search-highlight'), 3000);
+            return;
+        }
+    }
+    // 精确匹配失败，尝试模糊匹配
+    for (let i = msgs.length - 1; i >= 0; i--) {
+        const el = msgs[i];
+        if (!el.classList.contains(role)) continue;
+        const text = el.textContent?.trim() || '';
+        const searchQ = dom.globalSearchInput.value || lastSearchQuery;
+        if (searchQ && text.toLowerCase().includes(searchQ.toLowerCase())) {
+            el.classList.add('search-highlight');
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            setTimeout(() => el.classList.remove('search-highlight'), 3000);
+            return;
+        }
+    }
+}
+
+function escapeHtml(str) {
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+}
+
+function setPanelStatus(index, text, cls = '') {
+    panels[index].status.textContent = text;
+    panels[index].status.className = 'panel-status' + (cls ? ' ' + cls : '');
+}
+
+function clearWelcomeMessage(index) {
+    const w = panels[index].messages.querySelector('.welcome-message');
+    if (w) w.remove();
+}
+
+/** 中断 AI 回答时的清理：移除 streaming、停止按钮、用户提问 */
+function abortCleanup(panelIndex, el) {
+    if (el) {
+        if (el.dataset.aborted === 'true') return;
+        el.dataset.aborted = 'true';
+        el.classList.remove('streaming');
+        const sBtn = el.querySelector('.msg-stop-btn');
+        if (sBtn) sBtn.remove();
+        // 移除该面板中对应的用户提问（不能用 :last-of-type，因为后面有assistant div）
+        const userMsgs = panels[panelIndex].messages.querySelectorAll('.message.user');
+        const userMsg = userMsgs[userMsgs.length - 1];
+        if (userMsg) userMsg.remove();
+        // 从会话数据中删除该面板的最后一条用户消息
+        const session = getSession(currentSessionId);
+        if (session) {
+            for (let i = session.messages.length - 1; i >= 0; i--) {
+                if (session.messages[i].panel === panelIndex && session.messages[i].role === 'user') {
+                    session.messages.splice(i, 1);
+                    break;
+                }
+            }
+            saveSessions();
+        }
+    }
+    setPanelStatus(panelIndex, '已停止', '');
+}
+
+async function streamChat(slotIndex, userMessage, images = [], signal, searchSources = null) {
+    const slot = state.panelSlots[slotIndex];
+    const modelIndex = slot && slot.type === 'model' ? slot.index : slotIndex;
+    const config = getModelConfig(modelIndex);
+    const { apiKey, baseUrl, modelName } = config;
+    const isClaude = config.type === 'claude';
+
+    if (!apiKey) { setPanelStatus(slotIndex, '缺少 API Key', 'error'); showToast(`助手 ${modelIndex + 1}: 请设置 API Key`, 'error'); return; }
+    if (!modelName) { setPanelStatus(slotIndex, '缺少模型名称', 'error'); showToast(`助手 ${modelIndex + 1}: 请设置模型名称`, 'error'); return; }
+
+    // 历史消息
+    const msgElements = panels[slotIndex].messages.querySelectorAll('.message');
+    const history = [];
+    msgElements.forEach(el => {
+        if (el.classList.contains('user')) {
+            history.push({ role: 'user', content: el.textContent || '(图片消息)' });
+        } else if (el.classList.contains('assistant') && !el.classList.contains('streaming')) {
+            history.push({ role: 'assistant', content: el.textContent });
+        }
+    });
+
+    // 构建当前用户消息（含图片）
+    let userContent;
+    if (images.length > 0) {
+        userContent = [];
+        if (userMessage) {
+            userContent.push({ type: 'text', text: userMessage });
+        }
+        for (const img of images) {
+            if (isClaude) {
+                // Claude 图片格式：从 data URL 提取类型和数据
+                const match = img.dataUrl.match(/^data:(image\/\w+);base64,(.+)$/);
+                if (match) {
+                    userContent.push({
+                        type: 'image',
+                        source: { type: 'base64', media_type: match[1], data: match[2] },
+                    });
+                }
+            } else {
+                userContent.push({
+                    type: 'image_url',
+                    image_url: { url: img.dataUrl },
+                });
+            }
+        }
+    } else {
+        userContent = userMessage || '(图片消息)';
+    }
+
+    setPanelStatus(slotIndex, '思考中...', 'loading');
+
+    try {
+        let el, content = '';
+
+        if (isClaude) {
+            // ===== Claude (Anthropic) API =====
+            const claudeMessages = [];
+            for (const h of history) {
+                claudeMessages.push({ role: h.role, content: h.content });
+            }
+            claudeMessages.push({ role: 'user', content: userContent });
+
+            const body = { model: modelName, max_tokens: 4096, messages: claudeMessages, stream: true };
+            if (state.settings.systemPrompt) {
+                body.system = state.settings.systemPrompt;
+            }
+
+            const response = await fetch(`${baseUrl.replace(/\/+$/, '')}/messages`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': apiKey,
+                    'anthropic-version': '2023-06-01',
+                },
+                body: JSON.stringify(body),
+                signal,
+            });
+
+            if (!response.ok) {
+                const errText = await response.text().catch(() => '未知错误');
+                let errMsg;
+                try { const j = JSON.parse(errText); errMsg = j.error?.message || j.message || errText; } catch { errMsg = errText; }
+                throw new Error(`HTTP ${response.status}: ${errMsg}`);
+            }
+
+            setPanelStatus(slotIndex, '回复中...', 'loading');
+            el = addAssistantMessage(slotIndex);
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+
+            while (true) {
+                if (signal.aborted) { abortCleanup(slotIndex, el); return; }
+                const { done, value } = await reader.read();
+                if (done) break;
+                if (signal.aborted) { abortCleanup(slotIndex, el); return; }
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || '';
+
+                for (const line of lines) {
+                    if (line.startsWith('event: content_block_delta')) {
+                        // 下一行是 data
+                        continue;
+                    }
+                    if (line.startsWith('data: ')) {
+                        const data = line.slice(6).trim();
+                        try {
+                            const p = JSON.parse(data);
+                            if (p.type === 'content_block_delta' && p.delta?.text) {
+                                content += p.delta.text;
+                                updateAssistantMessage(el, content);
+                            }
+                        } catch (e) {}
+                    }
+                }
+            }
+
+            finishAssistantMessage(el);
+            if (searchSources) appendSearchSources(el, searchSources);
+            setPanelStatus(slotIndex, '已完成', 'done');
+            saveMessage('assistant', modelIndex, content, [], extractKeyword(content));
+
+        } else {
+            // ===== OpenAI 兼容 / DeepSeek / 豆包 =====
+            const messages = [];
+            if (state.settings.systemPrompt) messages.push({ role: 'system', content: state.settings.systemPrompt });
+            messages.push(...history.slice(-10));
+            messages.push({ role: 'user', content: userContent });
+
+            const response = await fetch(`${baseUrl}/chat/completions`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+                body: JSON.stringify({ model: modelName, messages, stream: true, temperature: 0.7, max_tokens: 4096 }),
+                signal,
+            });
+
+            if (!response.ok) {
+                const errText = await response.text().catch(() => '未知错误');
+                let errMsg;
+                try { const j = JSON.parse(errText); errMsg = j.error?.message || j.message || errText; } catch { errMsg = errText; }
+                throw new Error(`HTTP ${response.status}: ${errMsg}`);
+            }
+
+            setPanelStatus(slotIndex, '回复中...', 'loading');
+            el = addAssistantMessage(slotIndex);
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+
+            while (true) {
+                if (signal.aborted) { abortCleanup(slotIndex, el); return; }
+                const { done, value } = await reader.read();
+                if (done) break;
+                if (signal.aborted) { abortCleanup(slotIndex, el); return; }
+                const chunk = decoder.decode(value, { stream: true });
+                const lines = chunk.split('\n').filter(l => l.startsWith('data: '));
+                for (const line of lines) {
+                    const data = line.slice(6).trim();
+                    if (data === '[DONE]') continue;
+                    try {
+                        const p = JSON.parse(data);
+                        const d = p.choices?.[0]?.delta?.content || '';
+                        if (d) { content += d; updateAssistantMessage(el, content); }
+                    } catch (e) {}
+                }
+            }
+
+            finishAssistantMessage(el);
+            if (searchSources) appendSearchSources(el, searchSources);
+            setPanelStatus(slotIndex, '已完成', 'done');
+            saveMessage('assistant', modelIndex, content, [], extractKeyword(content));
+        }
+
+    } catch (err) {
+        if (err.name === 'AbortError') { abortCleanup(slotIndex, el); return; }
+        setPanelStatus(slotIndex, '出错了', 'error');
+        console.error(`助手 ${modelIndex + 1} 错误:`, err);
+        const errorEl = document.createElement('div');
+        errorEl.className = 'message assistant';
+        errorEl.style.color = '#ef4444';
+        errorEl.textContent = `⚠️ 请求失败: ${err.message}`;
+        panels[slotIndex].messages.appendChild(errorEl);
+        scrollPanelBottom(slotIndex);
+        finishAssistantMessage(errorEl);
+        saveMessage('assistant', modelIndex, errorEl.textContent, [], extractKeyword(errorEl.textContent));
+    }
+}
+
+async function sendMessage() {
+    if (state.isSending) return;
+    const text = dom.chatInput.value.trim();
+    const images = [...state.currentImages];
+    if (!text && images.length === 0) return;
+
+    state.isSending = true;
+    dom.sendBtn.disabled = true;
+    // 自动复制发送内容（使用兼容方式）
+    if (text) {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand('copy'); } catch (e) {}
+        document.body.removeChild(ta);
+    }
+    dom.chatInput.value = '';
+    state.currentImages = [];
+    renderImagePreviews();
+    autoResizeInput();
+
+    for (let si = 0; si < state.panelSlots.length; si++) {
+        const mi = getModelIndexAtSlot(si);
+        if (mi < 0) continue; // 网页面板跳过
+        clearWelcomeMessage(si);
+        panels[si].messages.querySelectorAll('.followup-suggestions').forEach(el => el.remove());
+    }
+    state.followupGeneration++;
+
+    // ========== 联网搜索逻辑 ==========
+    let searchContext = ''; // 搜索结果文本
+    let searchSources = []; // 搜索来源列表
+    let searchSourceName = ''; // 使用的搜索源名称
+
+    if (state.webSearchEnabled && text) {
+        // 显示搜索加载状态
+        for (let si = 0; si < state.panelSlots.length; si++) {
+            const mi = getModelIndexAtSlot(si);
+            if (mi < 0) continue;
+            addUserMessage(si, text, images);
+            saveMessage('user', mi, text, images.map(img => img.dataUrl));
+            const loadingEl = document.createElement('div');
+            loadingEl.className = 'web-search-loading';
+            loadingEl.innerHTML = '<div class="ws-spinner"></div><span>正在联网搜索…</span>';
+            panels[si].messages.appendChild(loadingEl);
+            scrollPanelBottom(si);
+        }
+
+        try {
+            const customInstance = state.webSearchInstance || undefined;
+            const { results, source } = await WebSearch.search(text, { customInstance, maxResults: 5 });
+            searchSourceName = source;
+            searchSources = results;
+
+            if (results.length > 0) {
+                searchContext = WebSearch.formatResultsForPrompt(text, results);
+            } else {
+                searchContext = '';
+            }
+        } catch (err) {
+            console.warn('[WebSearch] 搜索失败，降级为普通对话:', err.message);
+            searchContext = '';
+            searchSources = [];
+        }
+
+        // 移除搜索加载提示
+        for (let si = 0; si < state.panelSlots.length; si++) {
+            if (getModelIndexAtSlot(si) < 0) continue;
+            panels[si].messages.querySelectorAll('.web-search-loading').forEach(el => el.remove());
+        }
+    } else {
+        // 普通模式：直接添加用户消息
+        for (let si = 0; si < state.panelSlots.length; si++) {
+            const mi = getModelIndexAtSlot(si);
+            if (mi < 0) continue;
+            addUserMessage(si, text, images);
+            saveMessage('user', mi, text, images.map(img => img.dataUrl));
+        }
+    }
+
+    // 构建最终发送的消息文本
+    const finalText = searchContext ? `${text}\n\n${searchContext}` : text;
+
+    const promises = state.panelSlots.map((slot, si) => {
+        if (!slot || slot.type !== 'model') return Promise.resolve();
+        const mi = slot.index;
+        const c = new AbortController();
+        state.abortControllers[mi] = c;
+        return streamChat(si, finalText, images, c.signal, searchSources.length > 0 ? searchSources : null);
+    });
+
+    try { await Promise.allSettled(promises); }
+    finally {
+        state.isSending = false;
+        dom.sendBtn.disabled = true;
+        dom.chatInput.focus();
+        state.abortControllers = [null, null, null];
+        // 确保所有面板滚动到最下方
+        for (let si = 0; si < state.panelSlots.length; si++) {
+            if (getModelIndexAtSlot(si) < 0) continue;
+            scrollPanelBottom(si);
+        }
+    }
+}
+
+function autoResizeInput() {
+    const el = dom.chatInput;
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 344) + 'px';
+}
+
+function updateSendButton() {
+    const hasContent = dom.chatInput.value.trim().length > 0 || state.currentImages.length > 0;
+    dom.sendBtn.disabled = !hasContent || state.isSending;
+}
+
+// ==================== 图片上传 ====================
+
+function handleImageUpload(e) {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    for (const file of files) {
+        if (!file.type.startsWith('image/')) {
+            showToast(`不支持的文件类型: ${file.name}`, '');
+            continue;
+        }
+        if (file.size > 10 * 1024 * 1024) {
+            showToast(`图片过大 (最大10MB): ${file.name}`, '');
+            continue;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            state.currentImages.push({
+                id: Date.now() + Math.random(),
+                dataUrl: ev.target.result,
+                name: file.name,
+            });
+            renderImagePreviews();
+            updateSendButton();
+        };
+        reader.readAsDataURL(file);
+    }
+
+    dom.fileInput.value = '';
+}
+
+/** Ctrl+V 粘贴图片处理 */
+function handlePasteImage(e) {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (const item of items) {
+        if (!item.type.startsWith('image/')) continue;
+
+        e.preventDefault();
+        const file = item.getAsFile();
+        if (!file) continue;
+
+        if (file.size > 10 * 1024 * 1024) {
+            showToast('图片过大（最大10MB）', '');
+            continue;
+        }
+
+        // 生成随机文件名
+        const ext = file.type.split('/')[1] || 'png';
+        const name = `粘贴图片_${Date.now()}.${ext}`;
+
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            state.currentImages.push({
+                id: Date.now() + Math.random(),
+                dataUrl: ev.target.result,
+                name,
+            });
+            renderImagePreviews();
+            updateSendButton();
+            showToast('📋 已粘贴图片', 'success');
+        };
+        reader.readAsDataURL(file);
+        break; // 只取第一张图片
+    }
+}
+
+function renderImagePreviews() {
+    const area = dom.imagePreviewArea;
+    if (state.currentImages.length === 0) {
+        area.innerHTML = '';
+        return;
+    }
+    area.innerHTML = state.currentImages.map(img => `
+        <div class="image-preview-item" data-id="${img.id}">
+            <img src="${img.dataUrl}" alt="${img.name}">
+            <button class="image-preview-remove" onclick="removeImage(${img.id})">✕</button>
+        </div>
+    `).join('');
+}
+
+function removeImage(id) {
+    state.currentImages = state.currentImages.filter(img => img.id !== id);
+    renderImagePreviews();
+    updateSendButton();
+}
+
+// ==================== 清空聊天 ====================
+
+function clearAllMessages(daysRange = null) {
+    if (state.isSending) {
+        showToast('请等待当前对话完成', '');
+        return;
+    }
+
+    const session = getSession(currentSessionId);
+    const now = Date.now();
+    const dayMs = 24 * 60 * 60 * 1000;
+
+    // 计算时间阈值
+    let cutoffTime = null;
+    let rangeLabel = '';
+    if (daysRange === 'all' || daysRange === null) {
+        rangeLabel = '全部';
+    } else {
+        cutoffTime = now - (parseInt(daysRange) * dayMs);
+        rangeLabel = `${daysRange}天前`;
+    }
+
+    // 统计要删除的消息数量（删除 cutoffTime 之前的旧消息）
+    let messagesToRemove = 0;
+    if (session && session.messages) {
+        if (cutoffTime === null) {
+            messagesToRemove = session.messages.length;
+        } else {
+            messagesToRemove = session.messages.filter(m => m.time < cutoffTime).length;
+        }
+    }
+
+    // 检查是否有消息需要清空
+    const hasMessages = document.querySelector('.page-chat .message');
+    if (messagesToRemove === 0 && !hasMessages && state.currentImages.length === 0) {
+        showToast('没有需要清空的聊天记录', '');
+        return;
+    }
+
+    // 确认
+    const confirmMsg = cutoffTime === null
+        ? '确定要清空所有聊天记录吗？'
+        : `确定要清空${rangeLabel}以前的聊天记录吗？（共 ${messagesToRemove} 条）`;
+    if (!confirm(confirmMsg)) return;
+
+    if (cutoffTime === null) {
+        // 全部清空 - 原有逻辑
+        for (let i = 0; i < 3; i++) {
+            const container = panels[i].messages;
+            container.innerHTML = '';
+            // 恢复欢迎消息
+            const welcomeTexts = [
+                '你好！我是 AI 助手 1，请问有什么可以帮助你的？',
+                '你好！我是 AI 助手 2，请问有什么可以帮助你的？',
+                '你好！我是 AI 助手 3，请问有什么可以帮助你的？',
+            ];
+            const welcome = document.createElement('div');
+            welcome.className = 'welcome-message';
+            welcome.innerHTML = `<p>${welcomeTexts[i]}</p>`;
+            container.appendChild(welcome);
+            setPanelStatus(i, '就绪', '');
+        }
+
+        // 清空图片
+        state.currentImages = [];
+        renderImagePreviews();
+
+        // 清空输入
+        dom.chatInput.value = '';
+        autoResizeInput();
+        updateSendButton();
+
+        dom.chatInput.focus();
+        showToast('聊天记录已清空', 'success');
+
+        // 清空当前会话存储
+        if (session) {
+            session.messages = [];
+            session.title = '新对话';
+            session.updatedAt = Date.now();
+            saveSessions();
+            renderSessionList();
+            updateSessionToggleText();
+        }
+    } else {
+        // 按时间范围清空（删除 cutoffTime 之前的旧消息，保留最近的）
+        if (session && session.messages) {
+            // 保留 cutoffTime 之后的消息
+            const remainingMessages = session.messages.filter(m => m.time >= cutoffTime);
+            const removedCount = session.messages.length - remainingMessages.length;
+
+            if (removedCount === 0) {
+                showToast('该时间范围内没有聊天记录', '');
+                return;
+            }
+
+            session.messages = remainingMessages;
+            session.updatedAt = Date.now();
+
+            // 更新标题
+            const firstUserMsg = session.messages.find(m => m.role === 'user');
+            session.title = firstUserMsg && firstUserMsg.text
+                ? firstUserMsg.text.slice(0, 15).replace(/\n/g, ' ') || '新对话'
+                : '新对话';
+
+            saveSessions();
+            renderSessionList();
+            updateSessionToggleText();
+
+            // 重新渲染消息
+            renderSessionMessages();
+
+            showToast(`已清空${rangeLabel}以前的 ${removedCount} 条消息`, 'success');
+        }
+    }
+}
+
+// 渲染当前会话的消息到界面
+function renderSessionMessages() {
+    const session = getSession(currentSessionId);
+    if (!session) return;
+
+    // 清空所有面板
+    for (let i = 0; i < 3; i++) {
+        panels[i].messages.innerHTML = '';
+    }
+
+    // 如果没有消息，显示欢迎语
+    if (!session.messages || session.messages.length === 0) {
+        const welcomeTexts = [
+            '你好！我是 AI 助手 1，请问有什么可以帮助你的？',
+            '你好！我是 AI 助手 2，请问有什么可以帮助你的？',
+            '你好！我是 AI 助手 3，请问有什么可以帮助你的？',
+        ];
+        for (let i = 0; i < 3; i++) {
+            const welcome = document.createElement('div');
+            welcome.className = 'welcome-message';
+            welcome.innerHTML = `<p>${welcomeTexts[i]}</p>`;
+            panels[i].messages.appendChild(welcome);
+        }
+        return;
+    }
+
+    // 按面板分组渲染消息
+    for (let panelIdx = 0; panelIdx < 3; panelIdx++) {
+        const panelMessages = session.messages.filter(m => m.panel === panelIdx);
+        const container = panels[panelIdx].messages;
+        let lastTime = 0;
+
+        panelMessages.forEach(msg => {
+            // 时间分隔
+            if (msg.time && msg.time - lastTime >= 3600000) {
+                container.appendChild(createTimeSeparator(msg.time));
+            }
+            lastTime = msg.time || 0;
+
+            // 消息元素
+            const div = document.createElement('div');
+            div.className = `message ${msg.role}`;
+            if (msg.role === 'user') {
+                div.innerHTML = `<div class="message-content">${escapeHtml(msg.text)}</div>`;
+            } else {
+                div.innerHTML = `<div class="message-content">${msg.text}</div>`;
+            }
+            container.appendChild(div);
+        });
+
+        // 滚动到底部
+        container.scrollTop = container.scrollHeight;
+    }
+}
+
+// ==================== 图片反推提示词 ====================
+
+const REVERSE_PLATFORMS = {
+    mj: { label: 'MidJourney', color: '#22c55e' },
+    gpt: { label: 'GPT', color: '#6366f1' },
+    jimeng: { label: '即梦', color: '#f59e0b' },
+    sd: { label: 'Stable Diffusion', color: '#ec4899' },
+    doubao: { label: '豆包', color: '#10b981' },
+};
+
+const REVERSE_SYSTEM_PROMPTS = {
+    zh: {
+        mj: '你是一个专业的 MidJourney 提示词工程师。请根据用户提供的图片，生成一段详细的英文 MidJourney 提示词，包含主体、风格、光线、构图、色彩等描述，并添加适当的 MidJourney 参数（如 --ar 16:9, --v 6, --s 250 等）。只返回提示词本身，不要有任何额外说明。',
+        gpt: '你是一个专业的 DALL-E / GPT 图片提示词专家。请根据用户提供的图片，生成一段详细的英文图片描述提示词，适合在 GPT 中使用。要求描述清晰、结构完整，包含主体、环境、风格、光线、色调等细节。只返回提示词本身，不要有任何额外说明。',
+        jimeng: '你是一个专业的即梦（Jimeng）提示词工程师。请根据用户提供的图片，生成一段详细的中文图片描述提示词，适合在即梦平台使用。要求包含主体、风格、光线、构图、色彩等描述，语言优美生动。只返回提示词本身，不要有任何额外说明。',
+        sd: '你是一个专业的 Stable Diffusion 提示词工程师。请根据用户提供的图片，生成一段详细的英文 Stable Diffusion 提示词，包含主体、风格、光线、构图等描述，使用 SD 常用关键词（如 masterpiece, best quality, highly detailed 等），并推荐负面提示词。只返回提示词本身，不要有任何额外说明。',
+        doubao: '你是一个专业的豆包图片提示词工程师。请根据用户提供的图片，生成一段详细的中文图片描述提示词，适合在豆包平台使用。要求包含主体、环境、风格、光线、色调等细节，语言生动具体。只返回提示词本身，不要有任何额外说明。',
+    },
+    en: {
+        mj: 'You are a professional MidJourney prompt engineer. Based on the user\'s image, generate a detailed MidJourney prompt including subject, style, lighting, composition, colors, and appropriate MidJourney parameters (such as --ar 16:9, --v 6, --s 250, etc.). Return ONLY the prompt text, no explanations.',
+        gpt: 'You are a professional DALL-E / GPT image prompt expert. Based on the user\'s image, generate a detailed image description prompt suitable for GPT usage. Include subject, environment, style, lighting, and color details. Return ONLY the prompt text, no explanations.',
+        jimeng: 'You are a professional Jimeng prompt engineer. Based on the user\'s image, generate a detailed image prompt suitable for the Jimeng platform. Include subject, style, lighting, composition, and color descriptions. Return ONLY the prompt text, no explanations.',
+        sd: 'You are a professional Stable Diffusion prompt engineer. Based on the user\'s image, generate a detailed Stable Diffusion prompt including subject, style, lighting, and composition. Use SD keywords (such as masterpiece, best quality, highly detailed) and recommend negative prompts. Return ONLY the prompt text, no explanations.',
+        doubao: 'You are a professional Doubao image prompt engineer. Based on the user\'s image, generate a detailed image prompt suitable for the Doubao platform. Include subject, environment, style, lighting, and color details. Return ONLY the prompt text, no explanations.',
+    },
+};
+
+function loadReversePrefs() {
+    try {
+        const saved = localStorage.getItem('ai-chat-reverse-prefs');
+        if (saved) {
+            const p = JSON.parse(saved);
+            if (p.language) state.reversePrefs.language = p.language;
+            if (p.platform) state.reversePrefs.platform = p.platform;
+        }
+    } catch (e) {}
+}
+
+function saveReversePrefs() {
+    try {
+        localStorage.setItem('ai-chat-reverse-prefs', JSON.stringify(state.reversePrefs));
+    } catch (e) {}
+}
+
+/** 更新弹窗内按钮的选中状态 */
+function updateReverseUI() {
+    // 语言
+    document.querySelectorAll('.reverse-toggle-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.lang === state.reversePrefs.language);
+    });
+    // 平台
+    document.querySelectorAll('.reverse-platform-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.platform === state.reversePrefs.platform);
+    });
+    // 提交按钮（有图片才能生成）
+    dom.reverseSubmitBtn.disabled = state.currentImages.length === 0 || state.isReversing;
+}
+
+/** 打开反推提示词弹窗 */
+function openPromptReverse() {
+    loadReversePrefs();
+
+    // 有图片则显示图片预览
+    if (state.currentImages.length > 0) {
+        const img = state.currentImages[0];
+        dom.reverseImagePreview.src = img.dataUrl;
+        dom.reverseImageArea.style.display = 'block';
+    } else {
+        dom.reverseImageArea.style.display = 'none';
+        dom.reverseImagePreview.src = '';
+    }
+
+    // 有上次结果则恢复，否则显示占位符
+    if (state.lastReverseResultHTML) {
+        dom.reverseResult.innerHTML = state.lastReverseResultHTML;
+        const hasItems = dom.reverseResult.querySelectorAll('.reverse-result-item').length > 0;
+        dom.reverseCopyBtn.disabled = !hasItems;
+        dom.reverseTranslateBtn.disabled = !hasItems;
+    } else {
+        state.reverseResultText = '';
+        dom.reverseResult.innerHTML = '<span class="reverse-result-placeholder">点击下方按钮生成提示词...</span>';
+        dom.reverseCopyBtn.disabled = true;
+        dom.reverseTranslateBtn.disabled = true;
+    }
+
+    // 更新 UI 状态
+    updateReverseUI();
+    dom.promptReverseOverlay.classList.add('open');
+}
+
+function closePromptReverse() {
+    dom.promptReverseOverlay.classList.remove('open');
+    dom.reverseImageArea.style.display = 'none';
+    dom.reverseImagePreview.src = '';
+}
+
+/** 选择语言 */
+function selectReverseLanguage(lang) {
+    state.reversePrefs.language = lang;
+    saveReversePrefs();
+    updateReverseUI();
+}
+
+/** 选择平台 */
+function selectReversePlatform(platform) {
+    state.reversePrefs.platform = platform;
+    saveReversePrefs();
+    updateReverseUI();
+}
+
+/** 复制结果 - 收集所有模型的结果 */
+function copyReverseResult() {
+    const items = dom.reverseResult.querySelectorAll('.reverse-result-item');
+    if (items.length === 0) {
+        if (state.reverseResultText) {
+            copyText(state.reverseResultText);
+        }
+        return;
+    }
+
+    let text = '';
+    items.forEach(item => {
+        const header = item.querySelector('.reverse-result-item-header')?.textContent || '';
+        const content = item.querySelector('.reverse-result-item-content')?.textContent || '';
+        if (content && !content.startsWith('⏳') && !content.startsWith('⚠️')) {
+            text += `【${header.trim()}】\n${content}\n\n`;
+        }
+    });
+    if (text) copyText(text.trim());
+}
+
+/** 单个模型的反推请求（流式写入自己的结果块） */
+async function streamReversePrompt(modelIndex, modelLabel, modelConfig, img, systemPrompt, platformLabel, language) {
+    const itemDiv = document.createElement('div');
+    itemDiv.className = 'reverse-result-item';
+    itemDiv.dataset.modelIndex = modelIndex;
+    itemDiv.innerHTML = `
+        <div class="reverse-result-item-header" style="--panel-color: ${['#6366f1','#f59e0b','#10b981'][modelIndex]}">
+            <span>${modelLabel}</span>
+        </div>
+        <div class="reverse-result-item-content loading">⏳ 生成中...</div>
+    `;
+    dom.reverseResult.appendChild(itemDiv);
+    const contentEl = itemDiv.querySelector('.reverse-result-item-content');
+
+    try {
+        const response = await fetch(`${modelConfig.baseUrl}/chat/completions`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${modelConfig.apiKey}`,
+            },
+            body: JSON.stringify({
+                model: modelConfig.modelName,
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    {
+                        role: 'user',
+                        content: [
+                            { type: 'text', text: `请分析这张图片，生成适配 ${platformLabel} 的${language === 'zh' ? '中文' : '英文'}提示词：` },
+                            { type: 'image_url', image_url: { url: img.dataUrl } },
+                        ],
+                    },
+                ],
+                stream: true,
+                temperature: 0.7,
+                max_tokens: 2048,
+            }),
+        });
+
+        if (!response.ok) {
+            const errText = await response.text().catch(() => '未知错误');
+            throw new Error(`HTTP ${response.status}: ${errText}`);
+        }
+
+        contentEl.className = 'reverse-result-item-content';
+        contentEl.textContent = '';
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let content = '';
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const chunk = decoder.decode(value, { stream: true });
+            const lines = chunk.split('\n').filter(l => l.startsWith('data: '));
+            for (const line of lines) {
+                const data = line.slice(6).trim();
+                if (data === '[DONE]') continue;
+                try {
+                    const parsed = JSON.parse(data);
+                    const delta = parsed.choices?.[0]?.delta?.content || '';
+                    if (delta) {
+                        content += delta;
+                        contentEl.textContent = content;
+                    }
+                } catch (e) {}
+            }
+        }
+
+        return { modelIndex, text: content.trim(), success: true };
+
+    } catch (err) {
+        contentEl.className = 'reverse-result-item-content error';
+        contentEl.textContent = `⚠️ 生成失败: ${err.message}`;
+        return { modelIndex, text: '', success: false, error: err.message };
+    }
+}
+
+/** 执行反推提示词 - 调用所有启用的模型 */
+async function doPromptReverse() {
+    if (state.isReversing || state.currentImages.length === 0) return;
+
+    const platform = state.reversePrefs.platform;
+    const language = state.reversePrefs.language;
+    const img = state.currentImages[0];
+    const systemPrompt = REVERSE_SYSTEM_PROMPTS[language]?.[platform] || REVERSE_SYSTEM_PROMPTS.zh.mj;
+    const platformLabel = REVERSE_PLATFORMS[platform]?.label || platform;
+
+    // 收集所有启用的且配置完整的模型
+    const enabledConfigs = [];
+    const modelLabels = ['🤖 模型 1', '🔮 模型 2', '✨ 模型 3'];
+    for (let i = 0; i < 3; i++) {
+        if (state.enabledModels[i]) {
+            const cfg = getModelConfig(i);
+            if (cfg.apiKey && cfg.modelName) {
+                enabledConfigs.push({ index: i, label: modelLabels[i], config: cfg });
+            }
+        }
+    }
+
+    if (enabledConfigs.length === 0) {
+        showToast('请先在设置中配置 API Key 和模型名称', 'error');
+        dom.reverseResult.innerHTML = '<span class="reverse-error">⚠️ 未找到可用的模型配置，请先在设置中配置 API Key</span>';
+        return;
+    }
+
+    state.isReversing = true;
+    dom.reverseSubmitBtn.disabled = true;
+    dom.reverseSubmitBtn.textContent = '⏳ 生成中...';
+    dom.reverseResult.innerHTML = ''; // 清空占位符
+    dom.reverseCopyBtn.disabled = true;
+
+    // 并行调用所有启用的模型
+    const promises = enabledConfigs.map(ec =>
+        streamReversePrompt(ec.index, ec.label, ec.config, img, systemPrompt, platformLabel, language)
+    );
+
+    const results = await Promise.allSettled(promises);
+
+    // 检查是否有成功的结果
+    const successCount = results.filter(r => r.status === 'fulfilled' && r.value.success).length;
+    if (successCount > 0) {
+        dom.reverseCopyBtn.disabled = false;
+        dom.reverseTranslateBtn.disabled = false;
+        // 保存结果 HTML 以便无图片时复用
+        state.lastReverseResultHTML = dom.reverseResult.innerHTML;
+        showToast(`✨ ${successCount} 个模型提示词生成完成`, 'success');
+    } else {
+        showToast('所有模型均生成失败，请检查配置', 'error');
+    }
+
+    state.isReversing = false;
+    dom.reverseSubmitBtn.textContent = '🚀 生成提示词';
+    updateReverseUI();
+}
+
+/** 将反推结果全部翻译成中文（调用豆包翻译配置） */
+async function translateReverseResults() {
+    const items = dom.reverseResult.querySelectorAll('.reverse-result-item');
+    if (items.length === 0 || state.isTranslatingReverse) return;
+
+    const config = getTranslateConfig();
+    if (!config.apiKey) {
+        showToast('请先在设置中配置翻译 API Key', 'error');
+        return;
+    }
+
+    state.isTranslatingReverse = true;
+    dom.reverseTranslateBtn.disabled = true;
+    dom.reverseTranslateBtn.textContent = '⏳ 翻译中...';
+
+    const systemPrompt = '你是一个专业的翻译助手。请将用户输入的英文内容翻译成中文。只返回翻译结果，不要有任何额外说明。保留专业术语和格式标记（如 --ar, --v, --s, 负面提示词等）。';
+
+    let successCount = 0;
+
+    for (const item of items) {
+        const contentEl = item.querySelector('.reverse-result-item-content');
+        if (!contentEl) continue;
+        const originalText = contentEl.textContent?.trim();
+        if (!originalText || originalText.startsWith('⏳') || originalText.startsWith('⚠️') || originalText.startsWith('🇨🇳')) continue;
+
+        contentEl.className = 'reverse-result-item-content loading';
+        contentEl.textContent = '⏳ 翻译中...';
+
+        try {
+            const response = await fetch(`${config.baseUrl}/chat/completions`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${config.apiKey}`,
+                },
+                body: JSON.stringify({
+                    model: config.modelName,
+                    messages: [
+                        { role: 'system', content: systemPrompt },
+                        { role: 'user', content: originalText },
+                    ],
+                    stream: true,
+                    temperature: 0.3,
+                    max_tokens: 4096,
+                }),
+            });
+
+            if (!response.ok) {
+                const errText = await response.text().catch(() => '未知错误');
+                throw new Error(`HTTP ${response.status}: ${errText}`);
+            }
+
+            contentEl.className = 'reverse-result-item-content';
+            contentEl.textContent = '';
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let translation = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                const chunk = decoder.decode(value, { stream: true });
+                const lines = chunk.split('\n').filter(l => l.startsWith('data: '));
+                for (const line of lines) {
+                    const data = line.slice(6).trim();
+                    if (data === '[DONE]') continue;
+                    try {
+                        const parsed = JSON.parse(data);
+                        const delta = parsed.choices?.[0]?.delta?.content || '';
+                        if (delta) {
+                            translation += delta;
+                            contentEl.textContent = translation;
+                        }
+                    } catch (e) {}
+                }
+            }
+
+            // 添加已翻译标识
+            const header = item.querySelector('.reverse-result-item-header');
+            if (header && !header.querySelector('.translated-badge')) {
+                const badge = document.createElement('span');
+                badge.className = 'translated-badge';
+                badge.textContent = ' 🇨🇳 已翻译';
+                badge.style.cssText = 'font-size:11px;color:var(--accent-green);margin-left:auto;';
+                header.appendChild(badge);
+            }
+            successCount++;
+
+        } catch (err) {
+            contentEl.className = 'reverse-result-item-content error';
+            contentEl.textContent = `⚠️ 翻译失败: ${err.message}`;
+        }
+    }
+
+    state.isTranslatingReverse = false;
+    dom.reverseTranslateBtn.textContent = '🇨🇳 转中文';
+
+    if (successCount > 0) {
+        showToast(`✅ ${successCount} 个结果已翻译成中文`, 'success');
+    }
+}
+
+// ==================== 数据导出/导入 ====================
+
+/** 收集所有数据，导出为 JSON 文件 */
+function exportAllData() {
+    try {
+        // 收集所有 localStorage 数据
+        const data = {
+            version: 1,
+            exportTime: new Date().toISOString(),
+            sessions: JSON.parse(localStorage.getItem('ai-chat-sessions') || 'null'),
+            settings: JSON.parse(localStorage.getItem('ai-chat-settings') || 'null'),
+            bookmarks: JSON.parse(localStorage.getItem('ai-chat-bookmarks') || 'null'),
+            notes: JSON.parse(localStorage.getItem('ai-chat-notes') || 'null'),
+            theme: localStorage.getItem('ai-chat-theme') || null,
+            reversePrefs: JSON.parse(localStorage.getItem('ai-chat-reverse-prefs') || 'null'),
+        };
+
+        const json = JSON.stringify(data, null, 2);
+
+        // 下载文件
+        const blob = new Blob([json], { type: 'application/json;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const now = new Date();
+        const yearShort = String(now.getFullYear()).slice(-2);
+        const month = now.getMonth() + 1;
+        const day = now.getDate();
+        const dateKey = `${now.getFullYear()}-${month}-${day}`;
+
+        // 获取今日导出次数
+        let exportLog = { date: dateKey, count: 0 };
+        try {
+            const saved = localStorage.getItem('ai-chat-export-log');
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                if (parsed.date === dateKey) {
+                    exportLog = { date: dateKey, count: parsed.count + 1 };
+                } else {
+                    exportLog = { date: dateKey, count: 1 };
+                }
+            } else {
+                exportLog = { date: dateKey, count: 1 };
+            }
+            localStorage.setItem('ai-chat-export-log', JSON.stringify(exportLog));
+        } catch (e) { exportLog = { date: dateKey, count: 1 }; }
+
+        a.download = `多模型对话-${yearShort}年-${month}月-${day}日-${exportLog.count}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        showToast('✅ 数据导出成功', 'success');
+    } catch (e) {
+        console.error('导出失败:', e);
+        showToast('❌ 导出失败: ' + e.message, 'error');
+    }
+}
+
+/** 从 JSON 文件导入数据 */
+function importAllData(file) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const data = JSON.parse(e.target.result);
+
+            if (!data.version) {
+                showToast('❌ 无效的备份文件格式', 'error');
+                return;
+            }
+
+            // 逐个恢复数据
+            if (data.sessions !== undefined && data.sessions !== null) {
+                localStorage.setItem('ai-chat-sessions', JSON.stringify(data.sessions));
+            }
+            if (data.settings !== undefined && data.settings !== null) {
+                localStorage.setItem('ai-chat-settings', JSON.stringify(data.settings));
+            }
+            if (data.bookmarks !== undefined && data.bookmarks !== null) {
+                localStorage.setItem('ai-chat-bookmarks', JSON.stringify(data.bookmarks));
+            }
+            if (data.notes !== undefined && data.notes !== null) {
+                localStorage.setItem('ai-chat-notes', JSON.stringify(data.notes));
+            }
+            if (data.theme) {
+                localStorage.setItem('ai-chat-theme', data.theme);
+            }
+            if (data.reversePrefs) {
+                localStorage.setItem('ai-chat-reverse-prefs', JSON.stringify(data.reversePrefs));
+            }
+
+            showToast('✅ 数据导入成功！请刷新页面查看', 'success');
+
+            // 2 秒后自动刷新页面
+            setTimeout(() => {
+                location.reload();
+            }, 2000);
+
+        } catch (err) {
+            console.error('导入失败:', err);
+            showToast('❌ 导入失败: ' + err.message, 'error');
+        }
+    };
+    reader.readAsText(file);
+}
+
+// ==================== 事件绑定 ====================
+
+function initEventListeners() {
+    // 设置
+    dom.settingsBtn.addEventListener('click', openSettings);
+    dom.closeSettingsBtn.addEventListener('click', closeSettings);
+    dom.saveSettingsBtn.addEventListener('click', saveSettings);
+    dom.resetSettingsBtn.addEventListener('click', resetSettings);
+    dom.settingsOverlay.addEventListener('click', e => { if (e.target === dom.settingsOverlay) closeSettings(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && dom.settingsOverlay.classList.contains('open')) closeSettings(); });
+
+    // 模型类型切换 → 自动填充 Base URL + 更新模型名称下拉
+    const MODEL_BASE_URLS = {
+        doubao: 'https://ark.cn-beijing.volces.com/api/v3',
+        openai: 'https://api.xcdw.us/v1',
+        deepseek: 'https://api.deepseek.com/v1',
+        claude: '',
+    };
+
+    for (let i = 0; i < 3; i++) {
+        panels[i].modelType.addEventListener('change', () => {
+            const url = MODEL_BASE_URLS[panels[i].modelType.value];
+            if (url) panels[i].modelUrl.value = url;
+            updateModelNameOptions(i);
+        });
+
+        // 下拉选择模型名称 → 填充到输入框
+        panels[i].modelNameSelect.addEventListener('change', () => {
+            const val = panels[i].modelNameSelect.value;
+            if (val) panels[i].modelName.value = val;
+        });
+    }
+
+    // Escape 退出全屏
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape' && document.body.classList.contains('fullscreen-mode')) {
+            document.body.classList.remove('fullscreen-mode');
+            dom.fullscreenBtn.classList.remove('active');
+            dom.fullscreenBtn.title = '全屏模式';
+            localStorage.setItem('fullscreenMode', '0');
+        }
+    });
+
+    // 双击顶部区域取消选择网页
+    document.querySelector('.header')?.addEventListener('dblclick', () => {
+        if (state.webPanels.length > 0) {
+            deactivateWebPanel();
+        }
+    });
+
+    // 双击AI网页按钮区域取消选择网页
+    dom.aiWebWrapper.addEventListener('dblclick', (e) => {
+        if (e.target.tagName === 'BUTTON' || e.target.closest('button')) return;
+        if (state.webPanels.length > 0) {
+            deactivateWebPanel();
+        }
+    });
+
+    // 数据导出/导入
+    dom.exportDataBtn.addEventListener('click', exportAllData);
+    dom.importDataBtn.addEventListener('click', () => dom.importFileInput.click());
+    dom.importFileInput.addEventListener('change', () => {
+        if (dom.importFileInput.files.length > 0) {
+            importAllData(dom.importFileInput.files[0]);
+            dom.importFileInput.value = '';
+        }
+    });
+
+    // 连接校验
+    dom.verifyBtn.addEventListener('click', verifyModelConnection);
+    dom.verifyModel.addEventListener('change', () => {
+        dom.verifyCustom.classList.toggle('show', dom.verifyModel.value === 'custom');
+        dom.verifyResult.className = 'verify-result';
+        dom.verifyResult.innerHTML = '';
+    });
+
+    // 翻译源选择
+    document.querySelectorAll('.translate-source-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.translate-source-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        });
+    });
+
+    // 密码显示切换
+    document.querySelectorAll('.toggle-pwd-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const wrapper = btn.closest('.password-input-wrapper');
+            const input = wrapper.querySelector('.form-input');
+            if (input.type === 'password') { input.type = 'text'; btn.textContent = '👁‍🗨'; }
+            else { input.type = 'password'; btn.textContent = '👁'; }
+        });
+    });
+
+    // ===== 模式切换 =====
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const mode = btn.dataset.mode;
+            if (mode === 'theme') {
+                toggleThemeBar();
+                return;
+            }
+            switchMode(mode);
+        });
+    });
+
+    // 点击其他模式时关闭主题选择栏
+    document.addEventListener('click', (e) => {
+        if (dom.themeSelectBar.classList.contains('open') &&
+            !dom.themeSelectBar.contains(e.target) &&
+            e.target !== dom.themeModeBtn &&
+            !dom.themeModeBtn.contains(e.target)) {
+            dom.themeSelectBar.classList.remove('open');
+        }
+    });
+
+    // ===== 主题选择 =====
+    document.querySelectorAll('.theme-bar-btn').forEach(el => {
+        el.addEventListener('click', () => {
+            applyTheme(el.dataset.theme);
+            dom.themeSelectBar.classList.remove('open');
+        });
+    });
+
+    // ===== 聊天 =====
+    dom.sendBtn.addEventListener('click', sendMessage);
+    dom.chatInput.addEventListener('input', () => { autoResizeInput(); updateSendButton(); });
+    dom.chatInput.addEventListener('keydown', e => {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+    });
+    // Ctrl+V 粘贴图片
+    dom.chatInput.addEventListener('paste', handlePasteImage);
+
+    // 图片上传
+    dom.uploadBtn.addEventListener('click', () => dom.fileInput.click());
+    dom.fileInput.addEventListener('change', handleImageUpload);
+
+    // 清空聊天 - 点击显示下拉菜单
+    dom.clearMsgBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        dom.clearMsgDropdown.classList.toggle('open');
+    });
+
+    // 下拉菜单项点击
+    dom.clearMsgDropdown.addEventListener('click', (e) => {
+        const item = e.target.closest('.clear-dropdown-item');
+        if (!item) return;
+
+        const range = item.dataset.range;
+        dom.clearMsgDropdown.classList.remove('open');
+        clearAllMessages(range === 'all' ? 'all' : range);
+    });
+
+    // 点击外部关闭下拉菜单
+    document.addEventListener('click', (e) => {
+        if (!dom.clearMsgWrapper.contains(e.target)) {
+            dom.clearMsgDropdown.classList.remove('open');
+        }
+    });
+
+    // 隐藏/显示输入框
+    dom.hideInputBtn.addEventListener('click', toggleInputVisibility);
+
+    // 魔法棒 - 图片反推提示词
+    dom.magicBtn.addEventListener('click', openPromptReverse);
+
+    // ===== 联网搜索开关 =====
+    dom.webSearchToggle.addEventListener('click', () => {
+        state.webSearchEnabled = !state.webSearchEnabled;
+        dom.webSearchToggle.classList.toggle('active', state.webSearchEnabled);
+        dom.webSearchToggle.title = `联网搜索：${state.webSearchEnabled ? '开启' : '关闭'}`;
+        showToast(state.webSearchEnabled ? '🌐 联网搜索已开启' : '联网搜索已关闭', state.webSearchEnabled ? 'success' : '');
+    });
+
+    // ===== 模型选择切换 =====
+    document.querySelectorAll('.model-toggle-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            toggleModel(parseInt(btn.dataset.model));
+        });
+    });
+
+    // ===== AI网页按钮 =====
+    dom.aiWebBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        dom.aiWebDropdown.classList.toggle('show');
+    });
+
+    // 双击AI网页按钮：全开/全关
+    dom.aiWebBtn.addEventListener('dblclick', (e) => {
+        e.stopPropagation();
+        dom.aiWebDropdown.classList.remove('show');
+
+        if (state.webPanels.length > 0) {
+            // 关闭所有网页：直接清空
+            state.webPanels = [];
+            recalcPanelSlots();
+            updateAIWebButtonState();
+            showToast('🌐 已关闭所有网页', '');
+        } else {
+            // 打开前三个网页（最多）
+            const allWebTypes = Object.keys(AI_WEB_URLS).filter(webType => !AI_WEB_URLS[webType].newTab);
+            const webTypesToOpen = allWebTypes.slice(0, 3);
+            webTypesToOpen.forEach(webType => {
+                activateWebPanel(webType);
+            });
+        }
+    });
+
+    // ===== 去水印按钮 =====
+    dom.watermarkBtn.addEventListener('click', () => {
+        showWatermarkDisclaimer();
+    });
+
+    // ===== 悬浮网页按钮 =====
+    dom.floatWebBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        dom.floatWebDropdown.classList.toggle('show');
+        dom.floatGridMenu.classList.remove('show');
+        dom.aiWebDropdown.classList.remove('show');
+    });
+
+    // 右键悬浮按钮 - 切换宫格模式
+    dom.floatWebBtn.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dom.floatGridMenu.classList.toggle('show');
+        dom.floatWebDropdown.classList.remove('show');
+        dom.aiWebDropdown.classList.remove('show');
+    });
+
+    // 双击悬浮按钮 - 自动打开前N个网站（N=当前宫格模式，快速双击200ms内）
+    let floatDblClickTimer = null;
+    dom.floatWebBtn.addEventListener('click', (e) => {
+        if (floatDblClickTimer) {
+            clearTimeout(floatDblClickTimer);
+            floatDblClickTimer = null;
+            // 快速双击确认，执行打开（按混合排序）
+            const count = state.floatGridMode;
+            const validCustomWebs = state.customFloatWebs.filter(w => w.name && w.url);
+            const allTargets = [];
+            
+            // 优先使用混合顺序
+            if (state.floatMixedOrder && state.floatMixedOrder.length > 0) {
+                state.floatMixedOrder.forEach(itemData => {
+                    if (itemData.type === 'builtin' && FLOAT_WEB_URLS[itemData.key]) {
+                        allTargets.push({ type: 'builtin', key: itemData.key });
+                    } else if (itemData.type === 'custom') {
+                        const customWeb = validCustomWebs.find(w => w.name === itemData.name && w.url === itemData.url);
+                        if (customWeb) {
+                            allTargets.push({ type: 'custom', web: customWeb });
+                        }
+                    }
+                });
+            } else {
+                // 默认顺序：先内置后自定义
+                state.floatWebOrder.forEach(key => {
+                    if (FLOAT_WEB_URLS[key]) {
+                        allTargets.push({ type: 'builtin', key });
+                    }
+                });
+                validCustomWebs.forEach(w => {
+                    allTargets.push({ type: 'custom', web: w });
+                });
+            }
+            
+            // 只取前 count 个
+            const targetsToOpen = allTargets.slice(0, count);
+            targetsToOpen.forEach((target, idx) => {
+                setTimeout(() => {
+                    if (target.type === 'builtin') activateFloatWebPanel(target.key);
+                    else openCustomFloatWeb(target.web);
+                }, idx * 300);
+            });
+            showToast(`正在打开前${targetsToOpen.length}个悬浮网站...`, 'success');
+        } else {
+            floatDblClickTimer = setTimeout(() => {
+                floatDblClickTimer = null;
+            }, 200);
+        }
+    });
+
+    // 移除原来的 dblclick 事件（如有）
+    dom.floatWebBtn.addEventListener('dblclick', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+    });
+
+    // 宫格菜单项点击
+    dom.floatGridMenu.querySelectorAll('.float-grid-menu-item').forEach(item => {
+        item.addEventListener('click', () => {
+            const mode = parseInt(item.dataset.grid);
+            if (mode === 3 || mode === 4 || mode === 8) {
+                state.floatGridMode = mode;
+                state.floatWebNextSlot = 0;
+                dom.floatGridMenu.querySelectorAll('.float-grid-menu-item').forEach(el => {
+                    el.classList.toggle('active', el.dataset.grid === String(mode));
+                });
+                updateFloatWebButtonState();
+                showToast(`已切换到${mode}宫格模式`, 'success');
+            }
+            dom.floatGridMenu.classList.remove('show');
+        });
+    });
+
+    // 悬浮下拉菜单项点击 - 打开指定位置的新窗口
+    dom.floatWebDropdown.querySelectorAll('.ai-web-dropdown-item').forEach(item => {
+        item.addEventListener('click', () => {
+            const webType = item.dataset.web;
+            activateFloatWebPanel(webType);
+            dom.floatWebDropdown.classList.remove('show');
+        });
+    });
+
+    // 点击外部关闭下拉菜单和宫格菜单
+    document.addEventListener('click', (e) => {
+        if (!dom.aiWebWrapper.contains(e.target)) {
+            dom.aiWebDropdown.classList.remove('show');
+        }
+        if (!dom.floatWebWrapper.contains(e.target)) {
+            dom.floatWebDropdown.classList.remove('show');
+            dom.floatGridMenu.classList.remove('show');
+        }
+    });
+
+    // 下拉菜单项点击
+    dom.aiWebDropdown.querySelectorAll('.ai-web-dropdown-item').forEach(item => {
+        item.addEventListener('click', () => {
+            const webType = item.dataset.web;
+            const webConfig = AI_WEB_URLS[webType];
+            if (!webConfig) return;
+            // 如果设置了 newTab: true，用新标签页打开
+            if (webConfig.newTab) {
+                window.open(webConfig.url, '_blank');
+                showToast(`🌐 已用新标签页打开${webConfig.name}`, 'success');
+                dom.aiWebDropdown.classList.remove('show');
+                return;
+            }
+            activateWebPanel(webType);
+            dom.aiWebDropdown.classList.remove('show');
+        });
+        
+        // 右键点击：打开悬浮窗口
+        item.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            const webType = item.dataset.web;
+            openFloatingWeb(webType);
+            dom.aiWebDropdown.classList.remove('show');
+        });
+    });
+
+    // 悬浮窗口事件
+    dom.floatingWebToggleSize.addEventListener('click', toggleFloatingWebSize);
+    dom.floatingWebToggleOpacity.addEventListener('click', toggleFloatingWebOpacity);
+    dom.floatingWebClose.addEventListener('click', closeFloatingWeb);
+    initFloatingWebDrag();
+
+
+    // ===== 翻译 =====
+    dom.translateSwitchBtn.addEventListener('click', () => {
+        state.translateDirection = state.translateDirection === 'zh2en' ? 'en2zh' : 'zh2en';
+        updateTranslateUI();
+    });
+    dom.translateSource.addEventListener('input', updateTranslateButtons);
+    dom.translateSubmitBtn.addEventListener('click', doTranslate);
+    dom.translateSource.addEventListener('keydown', e => {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); doTranslate(); }
+    });
+    dom.translateCopySourceBtn.addEventListener('click', () => copyText(dom.translateSource.value));
+    dom.translateCopyTargetBtn.addEventListener('click', () => copyText(dom.translateResult.textContent));
+
+    // ===== 收藏标签切换 =====
+    document.querySelectorAll('.bkm-tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const tab = btn.dataset.tab;
+            // 切换按钮状态
+            document.querySelectorAll('.bkm-tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            // 切换面板
+            document.querySelectorAll('.bkm-tab-panel').forEach(p => p.classList.remove('active'));
+            document.getElementById(tab + 'Panel').classList.add('active');
+        });
+    });
+
+
+
+    // ===== 备忘 =====
+    dom.noteAddBtn.addEventListener('click', addNote);
+    dom.noteInput.addEventListener('keydown', e => {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addNote(); }
+    });
+
+    // ===== 聊天会话侧栏 =====
+    dom.sessionToggleBtn.addEventListener('click', toggleSessionSidebar);
+    dom.sessionSidebarClose.addEventListener('click', closeSessionSidebar);
+    dom.sessionNewBtn.addEventListener('click', startNewSession);
+    dom.sessionOverlay.addEventListener('click', closeSessionSidebar);
+
+    // 全屏模式切换
+    dom.fullscreenBtn.addEventListener('click', toggleFullscreen);
+
+    // 全局搜索
+    dom.searchBtn.addEventListener('click', openGlobalSearch);
+    dom.globalSearchInput.addEventListener('input', () => doGlobalSearch(dom.globalSearchInput.value.trim()));
+    dom.globalSearchClear.addEventListener('click', clearGlobalSearch);
+    dom.globalSearchClose.addEventListener('click', closeGlobalSearch);
+    dom.searchOverlay.addEventListener('mousedown', (e) => { if (e.target === dom.searchOverlay) closeGlobalSearch(); });
+
+    // Ctrl+K / Cmd+K 快捷键
+    document.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+            e.preventDefault();
+            if (dom.searchOverlay.style.display !== 'none') {
+                closeGlobalSearch();
+            } else {
+                openGlobalSearch();
+            }
+        }
+        // Esc 关闭搜索或收藏
+        if (e.key === 'Escape') {
+            if (dom.searchOverlay.style.display !== 'none') {
+                closeGlobalSearch();
+            } else if (dom.bookmarksOverlay.style.display !== 'none') {
+                closeMsgBookmarks();
+            } else if (dom.compareOverlay.style.display !== 'none') {
+                closeCompare();
+            }
+        }
+    });
+
+    // 消息收藏
+    dom.bookmarksBtn.addEventListener('click', openMsgBookmarks);
+    dom.bookmarksClose.addEventListener('click', closeMsgBookmarks);
+    dom.bookmarksOverlay.addEventListener('mousedown', (e) => { if (e.target === dom.bookmarksOverlay) closeMsgBookmarks(); });
+
+    // 对比模式
+    dom.compareBtn.addEventListener('click', openCompare);
+    dom.compareClose.addEventListener('click', closeCompare);
+    dom.compareOverlay.addEventListener('mousedown', (e) => {
+        if (e.target === dom.compareOverlay) closeCompare();
+    });
+    dom.comparePrev.addEventListener('click', () => {
+        if (_compareCurrentIdx > 0) { _compareCurrentIdx--; renderCompareRound(); }
+    });
+    dom.compareNext.addEventListener('click', () => {
+        if (_compareCurrentIdx < _compareRounds.length - 1) { _compareCurrentIdx++; renderCompareRound(); }
+    });
+    dom.compareDiffToggle.addEventListener('change', renderCompareRound);
+    dom.compareVerifyBtn.addEventListener('click', verifyCompareAccuracy);
+    dom.compareMergeBtn.addEventListener('click', verifyCompareMerge);
+    dom.compareVerifyClose.addEventListener('click', closeCompareVerify);
+
+    // ===== 反推提示词弹窗 =====
+    dom.closeReverseBtn.addEventListener('click', closePromptReverse);
+    dom.promptReverseOverlay.addEventListener('click', e => {
+        if (e.target === dom.promptReverseOverlay) closePromptReverse();
+    });
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape' && dom.promptReverseOverlay.classList.contains('open')) {
+            if (state.isReversing) return; // 生成中不能关闭
+            closePromptReverse();
+        }
+    });
+
+    // 语言选择
+    document.querySelectorAll('.reverse-toggle-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            selectReverseLanguage(btn.dataset.lang);
+        });
+    });
+
+    // 平台选择
+    document.querySelectorAll('.reverse-platform-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            selectReversePlatform(btn.dataset.platform);
+        });
+    });
+
+    // 生成、翻译、复制
+    dom.reverseSubmitBtn.addEventListener('click', doPromptReverse);
+    dom.reverseTranslateBtn.addEventListener('click', translateReverseResults);
+    dom.reverseCopyBtn.addEventListener('click', copyReverseResult);
+
+    // 界面默认设置按钮
+    document.querySelectorAll('.default-view-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.default-view-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        });
+    });
+}
+
+// 挂载删除函数到 window（给内联 onclick 用）
+window.deleteBookmark = deleteBookmark;
+window.deleteNote = deleteNote;
+window.removeImage = removeImage;
+window.deleteSession = deleteSession;
+
+// ==================== 初始化 ====================
+
+function init() {
+    loadSettings();
+    applySettingsToUI();
+    // 恢复全屏模式
+    restoreFullscreenMode();
+    // 加载聊天会话并恢复上次会话
+    loadSessions();
+    loadMessageBookmarks();
+    loadSessionToDOM(currentSessionId);
+    updateModelToggleButtons();
+    initEventListeners();
+    updateSendButton();
+    autoResizeInput();
+    loadNotes();
+    loadUserBookmarks();
+    loadCustomFloatWebs();
+    loadWebOrders();
+    loadFloatMixedOrder();
+    renderAIWebDropdown();
+    renderFloatWebDropdown();
+    renderCustomFloatWebItems();
+    updateTranslateUI();
+    updateTranslateButtons();
+    renderSessionList();
+    // 渲染分类收藏
+    renderBookmarkCategories();
+    initBookmarkCategoryEvents();
+    initContextMenuEvents();
+    // 加载上次会话状态
+    try {
+        const savedSessionState = localStorage.getItem('ai-chat-last-session-state');
+        if (savedSessionState) {
+            state.lastSessionState = JSON.parse(savedSessionState);
+        }
+    } catch (e) {}
+    // 页面加载后滚动所有面板到最下方
+    setTimeout(() => {
+        for (let i = 0; i < 3; i++) {
+            scrollPanelBottom(i);
+        }
+    }, 100);
+    // 根据界面默认设置初始化
+    if (state.defaultView === 'last' && state.lastSessionState) {
+        // 恢复上次状态
+        state.enabledModels = state.lastSessionState.enabledModels || [false, false, false];
+        state.webPanels = state.lastSessionState.webPanels || [];
+        state.inputHidden = state.lastSessionState.inputHidden !== undefined ? state.lastSessionState.inputHidden : true;
+        if (dom.chatInputArea) dom.chatInputArea.classList.toggle('hidden', state.inputHidden);
+        if (dom.chatBody) dom.chatBody.classList.toggle('input-hidden', state.inputHidden);
+        recalcPanelSlots();
+        updateModelToggleButtons();
+        updateAIWebButtonState();
+    } else {
+        // 默认打开豆包网页（刷新后只保留豆包，所有模型不启用）
+        state.enabledModels = [false, false, false];
+        state.webPanels = [];
+        state.inputHidden = true;
+        if (dom.chatInputArea) dom.chatInputArea.classList.add('hidden');
+        if (dom.chatBody) dom.chatBody.classList.add('input-hidden');
+        recalcPanelSlots();
+        updateModelToggleButtons();
+        activateWebPanel('doubao');
+    }
+    
+    // 保存当前状态供下次恢复
+    window.addEventListener('beforeunload', () => {
+        state.lastSessionState = {
+            enabledModels: [...state.enabledModels],
+            webPanels: [...state.webPanels],
+            inputHidden: state.inputHidden,
+        };
+        try {
+            localStorage.setItem('ai-chat-last-session-state', JSON.stringify(state.lastSessionState));
+        } catch (e) {}
+    });
+    
+    console.log('AI 多模型对话已启动 ✓');
+}
+
+// ==================== 去水印免责声明 ====================
+function showWatermarkDisclaimer() {
+    document.getElementById('watermarkDisclaimerOverlay').style.display = 'flex';
+}
+
+function hideWatermarkDisclaimer() {
+    document.getElementById('watermarkDisclaimerOverlay').style.display = 'none';
+}
+
+// ==================== 分类收藏功能 ====================
+
+// 渲染分类收藏
+function renderBookmarkCategories() {
+    const container = document.getElementById('bookmarkCategories');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    state.bookmarkCategories.forEach(category => {
+        const categoryEl = document.createElement('div');
+        categoryEl.className = 'bookmark-category';
+        categoryEl.dataset.category = category.id;
+        
+        // 合并默认网站和用户自定义网站
+        const userSites = state.userBookmarks.filter(b => b.categoryId === category.id);
+        const allSites = [...category.sites, ...userSites];
+        
+        const sitesHtml = allSites.map((site, index) => {
+            const isUserSite = index >= category.sites.length;
+            const userClass = isUserSite ? 'user-custom' : '';
+            const deleteBtn = isUserSite ? `<button class="site-delete-btn" data-category="${category.id}" data-index="${index - category.sites.length}" title="删除">✕</button>` : '';
+            
+            return `
+                <a href="${site.url}" target="_blank" class="site-card ${userClass}">
+                    <span class="site-favicon">${site.icon || '🔗'}</span>
+                    <div class="site-info">
+                        <span class="site-name">${site.name}</span>
+                        <span class="site-desc">${site.desc || ''}</span>
+                    </div>
+                    ${deleteBtn}
+                </a>
+            `;
+        }).join('');
+        
+        categoryEl.innerHTML = `
+            <div class="category-header">
+                <span class="category-icon">${category.icon}</span>
+                <h3 class="category-title">${category.name}</h3>
+            </div>
+            <div class="category-sites">
+                ${sitesHtml}
+            </div>
+        `;
+        
+        container.appendChild(categoryEl);
+    });
+}
+
+// 初始化分类收藏事件
+function initBookmarkCategoryEvents() {
+    // 切换添加表单显示
+    const toggleBtn = document.getElementById('toggleAddForm');
+    const addForm = document.getElementById('addSiteForm');
+    if (toggleBtn && addForm) {
+        toggleBtn.addEventListener('click', () => {
+            const isVisible = addForm.style.display !== 'none';
+            addForm.style.display = isVisible ? 'none' : 'block';
+            toggleBtn.textContent = isVisible ? '＋ 添加网站' : '✕ 取消';
+        });
+    }
+    
+    // 添加网站
+    const addBtn = document.getElementById('addSiteBtn');
+    if (addBtn) {
+        addBtn.addEventListener('click', addSiteToCategory);
+    }
+    
+    // 删除用户自定义网站（事件委托）
+    const container = document.getElementById('bookmarkCategories');
+    if (container) {
+        container.addEventListener('click', (e) => {
+            if (e.target.classList.contains('site-delete-btn')) {
+                const categoryId = parseInt(e.target.dataset.category);
+                const index = parseInt(e.target.dataset.index);
+                deleteUserSite(categoryId, index);
+            }
+        });
+    }
+    
+    // 回车添加
+    const inputs = ['addSiteName', 'addSiteUrl', 'addSiteDesc'];
+    inputs.forEach(id => {
+        const input = document.getElementById(id);
+        if (input) {
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addSiteToCategory();
+                }
+            });
+        }
+    });
+}
+
+// 添加网站到分类
+function addSiteToCategory() {
+    const categorySelect = document.getElementById('addSiteCategory');
+    const nameInput = document.getElementById('addSiteName');
+    const urlInput = document.getElementById('addSiteUrl');
+    const descInput = document.getElementById('addSiteDesc');
+    
+    const categoryId = categorySelect.value;
+    const name = nameInput.value.trim();
+    let url = urlInput.value.trim();
+    const desc = descInput.value.trim();
+    
+    if (!categoryId) {
+        showToast('请选择分类');
+        return;
+    }
+    if (!name) {
+        showToast('请输入网站名称');
+        return;
+    }
+    if (!url) {
+        showToast('请输入网站地址');
+        return;
+    }
+    
+    // 自动添加 https://
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        url = 'https://' + url;
+    }
+    
+    // 添加到用户收藏
+    state.userBookmarks.push({
+        categoryId: parseInt(categoryId),
+        name,
+        url,
+        desc,
+        icon: '🔗',
+        isUser: true
+    });
+    
+    // 保存到本地存储
+    saveUserBookmarks();
+    
+    // 重新渲染
+    renderBookmarkCategories();
+    
+    // 清空表单
+    nameInput.value = '';
+    urlInput.value = '';
+    descInput.value = '';
+    
+    showToast('添加成功');
+}
+
+// 删除用户自定义网站
+function deleteUserSite(categoryId, index) {
+    // 找到该分类下的所有用户网站
+    const categoryUserSites = state.userBookmarks.filter(b => b.categoryId === categoryId);
+    if (index < 0 || index >= categoryUserSites.length) return;
+    
+    const siteToDelete = categoryUserSites[index];
+    const actualIndex = state.userBookmarks.findIndex(b => 
+        b.categoryId === categoryId && b.name === siteToDelete.name && b.url === siteToDelete.url
+    );
+    
+    if (actualIndex > -1) {
+        state.userBookmarks.splice(actualIndex, 1);
+        saveUserBookmarks();
+        renderBookmarkCategories();
+        showToast('已删除');
+    }
+}
+
+// 保存用户收藏到本地存储
+function saveUserBookmarks() {
+    try {
+        localStorage.setItem('ai-chat-user-bookmarks', JSON.stringify(state.userBookmarks));
+    } catch (e) {
+        console.error('保存用户收藏失败:', e);
+    }
+}
+
+// 加载用户收藏
+function loadUserBookmarks() {
+    try {
+        const saved = localStorage.getItem('ai-chat-user-bookmarks');
+        if (saved) {
+            state.userBookmarks = JSON.parse(saved);
+        }
+    } catch (e) {
+        console.error('加载用户收藏失败:', e);
+    }
+}
+
+// ==================== 右键菜单和小标签页功能 ====================
+
+// 创建右键菜单
+function createContextMenu() {
+    // 移除已存在的菜单
+    const existingMenu = document.querySelector('.context-menu');
+    if (existingMenu) existingMenu.remove();
+    
+    const menu = document.createElement('div');
+    menu.className = 'context-menu';
+    menu.innerHTML = `
+        <div class="context-menu-item" data-action="open-new-tab">
+            <span class="icon">🌐</span>
+            <span>新标签页打开</span>
+        </div>
+        <div class="context-menu-item" data-action="open-mini-window">
+            <span class="icon">🪟</span>
+            <span>小窗口打开 (550×700)</span>
+        </div>
+        <div class="context-menu-divider"></div>
+        <div class="context-menu-item" data-action="copy-url">
+            <span class="icon">📋</span>
+            <span>复制链接</span>
+        </div>
+    `;
+    document.body.appendChild(menu);
+    return menu;
+}
+
+// 显示右键菜单
+function showContextMenu(e, siteData) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const menu = createContextMenu();
+    
+    // 设置菜单位置
+    let x = e.clientX;
+    let y = e.clientY;
+    
+    // 防止菜单超出视口
+    const menuWidth = 180;
+    const menuHeight = 120;
+    if (x + menuWidth > window.innerWidth) x = window.innerWidth - menuWidth - 10;
+    if (y + menuHeight > window.innerHeight) y = window.innerHeight - menuHeight - 10;
+    
+    menu.style.left = x + 'px';
+    menu.style.top = y + 'px';
+    menu.style.display = 'block';
+    
+    // 绑定菜单项点击事件
+    menu.querySelectorAll('.context-menu-item').forEach(item => {
+        item.addEventListener('click', () => {
+            const action = item.dataset.action;
+            handleContextMenuAction(action, siteData);
+            hideContextMenu();
+        });
+    });
+}
+
+// 隐藏右键菜单
+function hideContextMenu() {
+    const menu = document.querySelector('.context-menu');
+    if (menu) menu.remove();
+}
+
+// 处理右键菜单操作
+function handleContextMenuAction(action, siteData) {
+    switch (action) {
+        case 'open-new-tab':
+            window.open(siteData.url, '_blank');
+            break;
+        case 'open-mini-window':
+            openMiniWebWindow(siteData.name, siteData.url);
+            break;
+        case 'copy-url':
+            navigator.clipboard.writeText(siteData.url).then(() => {
+                showToast('链接已复制');
+            }).catch(() => {
+                showToast('复制失败');
+            });
+            break;
+    }
+}
+
+// 打开小标签页窗口
+function openMiniWebWindow(title, url) {
+    // 如果已存在相同URL的窗口，先关闭
+    const existingWindow = document.querySelector(`.mini-web-window[data-url="${url}"]`);
+    if (existingWindow) existingWindow.remove();
+    
+    const miniWindow = document.createElement('div');
+    miniWindow.className = 'mini-web-window';
+    miniWindow.dataset.url = url;
+    
+    // 默认位置在屏幕中央偏右
+    const defaultX = Math.max(20, window.innerWidth - 590);
+    const defaultY = Math.max(20, (window.innerHeight - 700) / 2);
+    
+    miniWindow.style.left = defaultX + 'px';
+    miniWindow.style.top = defaultY + 'px';
+    
+    miniWindow.innerHTML = `
+        <div class="mini-web-header">
+            <span class="mini-web-title">${title}</span>
+            <div class="mini-web-controls">
+                <button class="mini-web-btn" title="刷新" onclick="this.closest('.mini-web-window').querySelector('iframe').src+=''">🔄</button>
+                <button class="mini-web-btn" title="关闭" onclick="this.closest('.mini-web-window').remove()">✕</button>
+            </div>
+        </div>
+        <div class="mini-web-content">
+            <iframe class="mini-web-iframe" src="${url}" allow="clipboard-read; clipboard-write" sandbox="allow-same-origin allow-scripts allow-forms allow-popups"></iframe>
+        </div>
+    `;
+    
+    document.body.appendChild(miniWindow);
+    
+    // 添加拖拽功能
+    makeMiniWindowDraggable(miniWindow);
+    
+    showToast(`已打开小窗口: ${title}`);
+}
+
+// 小窗口拖拽功能
+function makeMiniWindowDraggable(element) {
+    const header = element.querySelector('.mini-web-header');
+    let isDragging = false;
+    let startX, startY, startLeft, startTop;
+    
+    header.addEventListener('mousedown', (e) => {
+        // 排除按钮点击
+        if (e.target.closest('.mini-web-btn')) return;
+        
+        isDragging = true;
+        startX = e.clientX;
+        startY = e.clientY;
+        startLeft = element.offsetLeft;
+        startTop = element.offsetTop;
+        
+        element.style.transition = 'none';
+        document.body.style.userSelect = 'none';
+    });
+    
+    document.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        
+        let newLeft = startLeft + dx;
+        let newTop = startTop + dy;
+        
+        // 限制在视口内
+        const maxLeft = window.innerWidth - element.offsetWidth;
+        const maxTop = window.innerHeight - element.offsetHeight;
+        
+        newLeft = Math.max(0, Math.min(newLeft, maxLeft));
+        newTop = Math.max(0, Math.min(newTop, maxTop));
+        
+        element.style.left = newLeft + 'px';
+        element.style.top = newTop + 'px';
+    });
+    
+    document.addEventListener('mouseup', () => {
+        if (isDragging) {
+            isDragging = false;
+            element.style.transition = '';
+            document.body.style.userSelect = '';
+        }
+    });
+}
+
+// 初始化右键菜单事件
+function initContextMenuEvents() {
+    const container = document.getElementById('bookmarkCategories');
+    if (!container) return;
+    
+    container.addEventListener('contextmenu', (e) => {
+        const siteCard = e.target.closest('.site-card');
+        if (!siteCard) return;
+        
+        const link = siteCard.closest('a');
+        if (!link) return;
+        
+        const siteData = {
+            name: link.querySelector('.site-name')?.textContent || '未命名',
+            url: link.href
+        };
+        
+        showContextMenu(e, siteData);
+    });
+    
+    // 点击其他地方隐藏菜单
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.context-menu')) {
+            hideContextMenu();
+        }
+    });
+    
+    // 滚动时隐藏菜单
+    document.addEventListener('scroll', hideContextMenu, true);
+}
+
+document.addEventListener('DOMContentLoaded', init);
