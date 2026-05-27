@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AIGC助手</title>
+    <link rel="stylesheet" href="./css/style.css?v=20">
+</head>
+<body>
+    <!-- 顶部导航栏 -->
+    <header class="header">
+        <div class="header-left">
+            <h1 class="site-title">AIGC助手</h1>
+            <span class="site-subtitle">一个问题，多个 AI 同时回答</span>
+        </div>
+        <button class="settings-btn" id="settingsBtn" title="设置">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+            设置
+        </button>
+    </header>
+
+    <!-- 模式切换栏 -->
+    <nav class="mode-bar">
+        <button class="mode-btn active" data-mode="chat">💬 对话</button>
+        <button class="mode-btn" data-mode="theme" id="themeModeBtn">🎨 背景选择</button>
+        <button class="mode-btn" data-mode="bookmarks">📑 收藏/备忘</button>
+        <button class="mode-btn" data-mode="help" id="helpBtn">📖 使用手册</button>
+    </nav>
+
+    <!-- 背景主题选择栏（内联显示） -->
+    <div class="theme-select-bar" id="themeSelectBar">
+        <span class="theme-bar-title">选择背景主题</span>
+        <div class="theme-bar-options">
+            <button class="theme-bar-btn" data-theme="auto">
+                <span class="theme-bar-preview tbp-auto"></span>
+                <span class="theme-bar-name">自动变化</span>
+                <span class="theme-bar-desc">早白·午橘白·晚灰</span>
+            </button>
+            <button class="theme-bar-btn" data-theme="white">
+                <span class="theme-bar-preview tbp-white"></span>
+                <span class="theme-bar-name">固定白</span>
+                <span class="theme-bar-desc">明亮简洁</span>
+            </button>
+            <button class="theme-bar-btn" data-theme="orange-white">
+                <span class="theme-bar-preview tbp-orange"></span>
+                <span class="theme-bar-name">固定橘白</span>
+                <span class="theme-bar-desc">温暖柔和</span>
+            </button>
+            <button class="theme-bar-btn" data-theme="gray">
+                <span class="theme-bar-preview tbp-gray"></span>
+                <span class="theme-bar-name">固定灰色</span>
+                <span class="theme-bar-desc">深色沉稳</span>
+            </button>
+            <button class="theme-bar-btn" data-theme="green">
+                <span class="theme-bar-preview tbp-green"></span>
+                <span class="theme-bar-name">固定绿色</span>
+                <span class="theme-bar-desc">自然护眼</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- ============ 主内容区域 ============ -->
+    <main class="main-content">
+
+        <!-- ====== 对话模式 ====== -->
+        <div class="page-section page-chat active">
+            <!-- 顶部操作栏 -->
+            <div class="chat-controls">
+                <button class="session-toggle-btn" id="sessionToggleBtn" title="聊天记录">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="3" y1="6" x2="21" y2="6"></line>
+                        <line x1="3" y1="12" x2="21" y2="12"></line>
+                        <line x1="3" y1="18" x2="21" y2="18"></line>
+                    </svg>
+                </button>
+                <div class="model-toggle-group" id="modelToggleGroup">
+                    <button class="model-toggle-btn active" data-model="0">模型1</button>
+                    <button class="model-toggle-btn active" data-model="1">模型2</button>
+                    <button class="model-toggle-btn active" data-model="2">模型3</button>
+                </div>
+                <div class="ai-web-wrapper" id="aiWebWrapper">
+                    <button class="ai-web-btn" id="aiWebBtn" title="AI网页 - 双击全开/全关">🌐 AI网页</button>
+                    <div class="ai-web-dropdown" id="aiWebDropdown">
+                        <!-- AI网页项由JS动态渲染 -->
+                    </div>
+                </div>
+                <div class="ai-web-wrapper" id="floatWebWrapper">
+                    <button class="ai-web-btn" id="floatWebBtn" title="左键打开菜单，右键切换宫格">🪟 悬浮</button>
+                    <div class="float-grid-menu" id="floatGridMenu">
+                        <div class="float-grid-menu-item active" data-grid="8">
+                            <span class="float-grid-icon">⊞</span>
+                            <span class="float-grid-label">8宫格</span>
+                        </div>
+                        <div class="float-grid-menu-item" data-grid="4">
+                            <span class="float-grid-icon">⊞</span>
+                            <span class="float-grid-label">4宫格</span>
+                        </div>
+                        <div class="float-grid-menu-item" data-grid="3">
+                            <span class="float-grid-icon">⊞</span>
+                            <span class="float-grid-label">3宫格</span>
+                        </div>
+                    </div>
+                    <div class="ai-web-dropdown" id="floatWebDropdown">
+                        <!-- 悬浮网页项由JS动态渲染 -->
+                    </div>
+                </div>
+                <button class="ai-web-btn" id="watermarkBtn" title="视频去水印工具">🚿 去水印</button>
+                <button class="hide-input-inline-btn" id="hideInputBtn" title="显示/隐藏输入框">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                        <line x1="1" y1="1" x2="23" y2="23"></line>
+                    </svg>
+                </button>
+                <button class="ai-web-btn" id="translateToggleBtn" title="左键：嵌入翻译网页 | 右键：快速翻译面板">🌐 翻译</button>
+                <button class="ai-web-btn" id="imageGenToggleBtn" title="左键：嵌入生图页面 | 右键：快速生图面板">🎨 生图</button>
+                <div class="controls-right">
+                    <button class="compare-btn" id="compareBtn" title="对比模式">🔄 对比</button>
+                    <button class="search-btn" id="searchBtn" title="搜索 (Ctrl+K)">🔍</button>
+                    <button class="fullscreen-btn" id="fullscreenBtn" title="全屏模式">⛶</button>
+                </div>
+            </div>
+
+            <div class="chat-body">
+                <!-- 会话侧栏（可折叠） -->
+                <div class="session-overlay" id="sessionOverlay"></div>
+                <div class="session-sidebar" id="sessionSidebar">
+                    <div class="session-sidebar-header">
+                        <span class="session-sidebar-title">📋 聊天记录</span>
+                        <button class="session-sidebar-close" id="sessionSidebarClose">✕</button>
+                    </div>
+                    <button class="session-new-btn" id="sessionNewBtn">＋ 新建聊天</button>
+                    <button class="session-bookmarks-btn" id="sessionBookmarksBtn">📌 收藏消息</button>
+                    <div class="session-list" id="sessionList">
+                        <div class="session-list-empty">暂无聊天记录</div>
+                    </div>
+                </div>
+
+                <div class="chat-main">
+
+            <div class="chat-grid" id="chatGrid">
+                <div class="chat-panel" data-panel="0">
+                    <div class="panel-header" style="--panel-color: #6366f1;">
+                        <span class="panel-icon">🤖</span>
+                        <span class="panel-name" id="panelName0">AI 助手 1</span>
+                        <span class="panel-status" id="panelStatus0">就绪</span>
+                    </div>
+                    <div class="panel-messages" id="panelMessages0">
+                        <div class="welcome-message">
+                            <p>你好！我是 AI 助手 1，请问有什么可以帮助你的？</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-panel" data-panel="1">
+                    <div class="panel-header" style="--panel-color: #f59e0b;">
+                        <span class="panel-icon">🔮</span>
+                        <span class="panel-name" id="panelName1">AI 助手 2</span>
+                        <span class="panel-status" id="panelStatus1">就绪</span>
+                    </div>
+                    <div class="panel-messages" id="panelMessages1">
+                        <div class="welcome-message">
+                            <p>你好！我是 AI 助手 2，请问有什么可以帮助你的？</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-panel" data-panel="2">
+                    <div class="panel-header" style="--panel-color: #10b981;">
+                        <span class="panel-icon">✨</span>
+                        <span class="panel-name" id="panelName2">AI 助手 3</span>
+                        <span class="panel-status" id="panelStatus2">就绪</span>
+                    </div>
+                    <div class="panel-messages" id="panelMessages2">
+                        <div class="welcome-message">
+                            <p>你好！我是 AI 助手 3，请问有什么可以帮助你的？</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 快速翻译面板 -->
+            <div class="quick-translate-panel" id="quickTranslatePanel" style="display: none;">
+                <div class="quick-translate-header">
+                    <span class="quick-translate-title">🌐 快速翻译</span>
+                    <button class="quick-translate-close" id="quickTranslateClose">✕</button>
+                </div>
+                <div class="quick-translate-body">
+                    <div class="quick-translate-options">
+                        <label class="quick-auto-translate-toggle" title="输入时自动翻译">
+                            <input type="checkbox" id="quickAutoTranslateToggle">
+                            <span>实时翻译</span>
+                        </label>
+                        <span class="quick-translate-hint">💡 回车快速翻译</span>
+                    </div>
+                    <div class="quick-translate-row">
+                        <div class="quick-translate-input-col">
+                            <div class="quick-translate-label">
+                                <span id="quickTranslateSourceLang">中文</span>
+                                <button class="quick-translate-swap" id="quickTranslateSwap" title="切换">⇄</button>
+                            </div>
+                            <textarea class="quick-translate-textarea" id="quickTranslateInput" placeholder="输入要翻译的内容..." rows="3"></textarea>
+                        </div>
+                        <div class="quick-translate-output-col">
+                            <div class="quick-translate-label">
+                                <span id="quickTranslateTargetLang">英文</span>
+                                <button class="quick-translate-copy" id="quickTranslateCopy" title="复制">📋</button>
+                            </div>
+                            <div class="quick-translate-result" id="quickTranslateResult">
+                                <span class="quick-translate-placeholder">翻译结果...</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="quick-translate-actions">
+                        <button class="quick-translate-clear-btn" id="quickTranslateClearBtn" title="清空所有内容">🗑️ 清空</button>
+                        <button class="quick-translate-btn" id="quickTranslateBtn">翻译</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 悬浮网站面板区域 - 4个位置 -->
+            <div class="float-web-grid" id="floatWebGrid">
+                <div class="float-web-panel" data-float-panel="0">
+                    <div class="float-web-header">
+                        <span class="float-web-icon">🔒</span>
+                        <span class="float-web-name" id="floatWebName0">空</span>
+                        <button class="float-web-close" data-panel="0">✕</button>
+                    </div>
+                    <div class="float-web-content" id="floatWebContent0"></div>
+                </div>
+                <div class="float-web-panel" data-float-panel="1">
+                    <div class="float-web-header">
+                        <span class="float-web-icon">🔒</span>
+                        <span class="float-web-name" id="floatWebName1">空</span>
+                        <button class="float-web-close" data-panel="1">✕</button>
+                    </div>
+                    <div class="float-web-content" id="floatWebContent1"></div>
+                </div>
+                <div class="float-web-panel" data-float-panel="2">
+                    <div class="float-web-header">
+                        <span class="float-web-icon">🔒</span>
+                        <span class="float-web-name" id="floatWebName2">空</span>
+                        <button class="float-web-close" data-panel="2">✕</button>
+                    </div>
+                    <div class="float-web-content" id="floatWebContent2"></div>
+                </div>
+                <div class="float-web-panel" data-float-panel="3">
+                    <div class="float-web-header">
+                        <span class="float-web-icon">🔒</span>
+                        <span class="float-web-name" id="floatWebName3">空</span>
+                        <button class="float-web-close" data-panel="3">✕</button>
+                    </div>
+                    <div class="float-web-content" id="floatWebContent3"></div>
+                </div>
+            </div>
+
+            <!-- 对话模式输入区 -->
+            <div class="input-area" id="chatInputArea">
+                <div class="input-wrapper">
+                    <div class="input-tools">
+                        <button class="tool-btn" id="uploadBtn" title="上传图片">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                                <polyline points="21 15 16 10 5 21"></polyline>
+                            </svg>
+                        </button>
+                        <button class="tool-btn" id="magicBtn" title="图片反推提示词">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M12 3h.01M12 21h.01M3 12h.01M21 12h.01M5.63 5.63h.01M18.36 18.36h.01M5.63 18.36h.01M18.36 5.63h.01"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                        </button>
+                        <button class="tool-btn web-search-toggle" id="webSearchToggle" title="联网搜索：关闭">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="2" y1="12" x2="22" y2="12"></line>
+                                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                            </svg>
+                        </button>
+                        <input type="file" id="fileInput" accept="image/*" style="display:none">
+                    </div>
+                    <div class="input-middle">
+                        <!-- 图片预览区 -->
+                        <div class="image-preview-area" id="imagePreviewArea"></div>
+                        <textarea
+                            class="chat-input"
+                            id="chatInput"
+                            placeholder="输入你的问题，3 个 AI 将同时回答..."
+                            rows="1"
+                        ></textarea>
+                    </div>
+                    <div class="input-actions">
+                        <div class="clear-msg-wrapper" id="clearMsgWrapper">
+                            <button class="tool-btn clear-msg-btn" id="clearMsgBtn" title="清空聊天">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="3 6 5 6 21 6"></polyline>
+                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                </svg>
+                            </button>
+                            <div class="clear-msg-dropdown" id="clearMsgDropdown">
+                                <div class="clear-dropdown-item" data-range="7">🕐 7天前</div>
+                                <div class="clear-dropdown-item" data-range="3">🕑 3天前</div>
+                                <div class="clear-dropdown-item" data-range="1">🕒 1天前</div>
+                                <div class="clear-dropdown-divider"></div>
+                                <div class="clear-dropdown-item danger" data-range="all">🗑️ 全部清空</div>
+                            </div>
+                        </div>
+                        <button class="send-btn" id="sendBtn" disabled>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="22" y1="2" x2="11" y2="13"></line>
+                                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="session-overlay" id="sessionOverlay" style="display:none"></div>
+
+        <!-- ====== 收藏/备忘模式（整合版） ====== -->
+        <div class="page-section page-bookmarks">
+            <div class="bookmarks-layout">
+                <!-- 左侧：分类收藏 -->
+                <div class="bookmarks-main">
+                    <div class="bookmarks-header">
+                        <h2 class="bookmarks-title">📚 分类收藏</h2>
+                        <button class="bookmarks-add-toggle" id="toggleAddForm">＋ 添加网站</button>
+                    </div>
+                    
+                    <!-- 添加网站表单 -->
+                    <div class="add-site-form" id="addSiteForm" style="display: none;">
+                        <div class="add-site-row">
+                            <select class="add-site-select" id="addSiteCategory">
+                                <option value="">选择分类...</option>
+                                <option value="0">🎨 设计灵感 & 设计师社区</option>
+                                <option value="1">🖼️ 高清图库</option>
+                                <option value="2">🛠️ 设计 & 效率工具</option>
+                                <option value="3">🧭 AIGC 综合导航</option>
+                                <option value="4">🎨 AI 绘画</option>
+                                <option value="5">💬 AI 文本 & 大模型</option>
+                                <option value="6">🎬 AI 视频</option>
+                                <option value="7">🧊 AI 3D</option>
+                                <option value="8">🏛️ AI 模型社区</option>
+                                <option value="9">📺 视频平台</option>
+                                <option value="10">🔌 API调用/中转站</option>
+                            </select>
+                            <input type="text" class="add-site-input" id="addSiteName" placeholder="网站名称">
+                            <input type="url" class="add-site-input" id="addSiteUrl" placeholder="https://...">
+                            <input type="text" class="add-site-input add-site-desc" id="addSiteDesc" placeholder="描述（可选）">
+                            <button class="add-site-btn" id="addSiteBtn">添加</button>
+                        </div>
+                    </div>
+                    
+                    <div class="bookmark-categories" id="bookmarkCategories">
+                        <!-- 分类内容由JS动态生成 -->
+                    </div>
+                </div>
+                
+                <!-- 右侧：备忘录 -->
+                <div class="bookmarks-sidebar">
+                    <div class="notes-card">
+                        <div class="notes-header">
+                            <h3 class="notes-title">📝 备忘录</h3>
+                            <span class="notes-count" id="noteCount">0 条</span>
+                        </div>
+                        <div class="notes-add-form">
+                            <textarea class="notes-input" id="noteInput" placeholder="写点什么..." rows="3"></textarea>
+                            <button class="notes-add-btn" id="noteAddBtn">添加</button>
+                        </div>
+                        <div class="notes-list" id="noteList">
+                            <div class="notes-empty">暂无备忘</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ====== 使用手册模式 ====== -->
+        <div class="page-section page-help">
+            <div class="help-container">
+                <div class="help-header">
+                    <h2 class="help-title">📖 使用手册</h2>
+                    <p class="help-subtitle">快速了解网站功能和快捷键</p>
+                </div>
+                <div class="help-content">
+                    <!-- 功能介绍 -->
+                    <div class="help-section">
+                        <h3 class="help-section-title">🚀 核心功能</h3>
+                        <div class="help-grid">
+                            <div class="help-card">
+                                <div class="help-card-icon">💬</div>
+                                <div class="help-card-title">多模型对话</div>
+                                <div class="help-card-desc">支持同时与3个AI助手对话，可自由开关每个模型</div>
+                            </div>
+                            <div class="help-card">
+                                <div class="help-card-icon">🔄</div>
+                                <div class="help-card-title">对比模式</div>
+                                <div class="help-card-desc">对比不同模型的回答差异</div>
+                            </div>
+                            <div class="help-card">
+                                <div class="help-card-icon">🔍</div>
+                                <div class="help-card-title">联网搜索</div>
+                                <div class="help-card-desc">开启后自动搜索网络信息辅助回答</div>
+                            </div>
+                            <div class="help-card">
+                                <div class="help-card-icon">🌐</div>
+                                <div class="help-card-title">AI网页嵌入</div>
+                                <div class="help-card-desc">豆包、Kimi、可灵等AI工具直接嵌入使用</div>
+                            </div>
+                            <div class="help-card">
+                                <div class="help-card-icon">🎨</div>
+                                <div class="help-card-title">图片生成</div>
+                                <div class="help-card-desc">支持DALL-E等API生成图片</div>
+                            </div>
+                            <div class="help-card">
+                                <div class="help-card-icon">📑</div>
+                                <div class="help-card-title">收藏备忘</div>
+                                <div class="help-card-desc">分类收藏网站，记录备忘笔记</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 快捷键 -->
+                    <div class="help-section">
+                        <h3 class="help-section-title">⌨️ 快捷键</h3>
+                        <div class="help-shortcuts">
+                            <div class="help-shortcut-item">
+                                <span class="help-key">Alt</span>
+                                <span class="help-plus">+</span>
+                                <span class="help-key">S</span>
+                                <span class="help-shortcut-desc">截图（拖拽选区后自动复制）</span>
+                            </div>
+                            <div class="help-shortcut-item">
+                                <span class="help-key">Ctrl</span>
+                                <span class="help-plus">+</span>
+                                <span class="help-key">K</span>
+                                <span class="help-shortcut-desc">打开搜索</span>
+                            </div>
+                            <div class="help-shortcut-item">
+                                <span class="help-key">Ctrl</span>
+                                <span class="help-plus">+</span>
+                                <span class="help-key">Enter</span>
+                                <span class="help-shortcut-desc">发送消息</span>
+                            </div>
+                            <div class="help-shortcut-item">
+                                <span class="help-key">Ctrl</span>
+                                <span class="help-plus">+</span>
+                                <span class="help-key">V</span>
+                                <span class="help-shortcut-desc">粘贴图片到输入框</span>
+                            </div>
+                            <div class="help-shortcut-item">
+                                <span class="help-key">ESC</span>
+                                <span class="help-shortcut-desc">取消截图 / 关闭弹窗</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 按钮功能 -->
+                    <div class="help-section">
+                        <h3 class="help-section-title">🔘 按钮功能</h3>
+                        <div class="help-buttons">
+                            <div class="help-button-item">
+                                <span class="help-btn-name">🌐 AI网页</span>
+                                <span class="help-btn-desc">左键打开菜单，双击全开/全关</span>
+                            </div>
+                            <div class="help-button-item">
+                                <span class="help-btn-name">🪟 悬浮</span>
+                                <span class="help-btn-desc">左键打开菜单，右键切换宫格</span>
+                            </div>
+                            <div class="help-button-item">
+                                <span class="help-btn-name">🌐 翻译</span>
+                                <span class="help-btn-desc">左键嵌入翻译网页，右键快速翻译</span>
+                            </div>
+                            <div class="help-button-item">
+                                <span class="help-btn-name">🎨 生图</span>
+                                <span class="help-btn-desc">左键嵌入生图页面</span>
+                            </div>
+                            <div class="help-button-item">
+                                <span class="help-btn-name">🔄 对比</span>
+                                <span class="help-btn-desc">开启对比模式，高亮差异</span>
+                            </div>
+                            <div class="help-button-item">
+                                <span class="help-btn-name">🔍 搜索</span>
+                                <span class="help-btn-desc">搜索历史会话</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 使用技巧 -->
+                    <div class="help-section">
+                        <h3 class="help-section-title">💡 使用技巧</h3>
+                        <div class="help-tips">
+                            <div class="help-tip">
+                                <span class="help-tip-icon">💬</span>
+                                <span class="help-tip-text">点击对话气泡可直接编辑已发送的消息</span>
+                            </div>
+                            <div class="help-tip">
+                                <span class="help-tip-icon">🖼️</span>
+                                <span class="help-tip-text">支持拖拽图片到输入框，或Ctrl+V粘贴</span>
+                            </div>
+                            <div class="help-tip">
+                                <span class="help-tip-icon">📋</span>
+                                <span class="help-tip-text">截图后可直接粘贴到对话框发送</span>
+                            </div>
+                            <div class="help-tip">
+                                <span class="help-tip-icon">⚙️</span>
+                                <span class="help-tip-text">在设置中配置API Key和模型参数</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- 设置面板 -->
+    <div class="settings-overlay" id="settingsOverlay">
+        <div class="settings-panel">
+            <div class="settings-header">
+                <h2>设置</h2>
+                <button class="close-btn" id="closeSettingsBtn">&times;</button>
+            </div>
+            <div class="settings-body">
+                <!-- 全局设置 -->
+                <div class="settings-section">
+                    <h3 class="section-title">全局设置</h3>
+                    <div class="form-group">
+                        <label class="form-label" for="globalApiKey">API Key</label>
+                        <div class="password-input-wrapper">
+                            <input type="password" class="form-input" id="globalApiKey" placeholder="sk-..." autocomplete="off">
+                            <button class="toggle-pwd-btn" type="button" title="显示/隐藏">👁</button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="globalBaseUrl">Base URL</label>
+                        <input type="url" class="form-input" id="globalBaseUrl" placeholder="https://api.openai.com/v1">
+                    </div>
+                </div>
+
+                <!-- 模型配置 -->
+                <div class="settings-section">
+                    <h3 class="section-title">模型配置</h3>
+                    <p class="section-desc">为每个 AI 助手单独配置模型</p>
+
+                    <div class="model-config-card">
+                        <div class="config-card-header"><span class="config-card-icon">🤖</span><span class="config-card-title">AI 助手 1</span></div>
+                        <div class="form-group">
+                            <label class="form-label">模型类型</label>
+                            <select class="form-select" id="modelType0">
+                                <option value="openai">GPT / OpenAI 兼容</option>
+                                <option value="deepseek">DeepSeek</option>
+                                <option value="doubao">豆包 (Doubao)</option>
+                                <option value="claude">Claude (Anthropic)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">模型名称</label>
+                            <div class="model-name-combo">
+                                <select class="form-select model-name-select" id="modelNameSelect0">
+                                    <option value="">-- 选择模型 --</option>
+                                </select>
+                                <input type="text" class="form-input model-name-input" id="modelName0" placeholder="或手动输入模型名称">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">API Key（留空使用全局）</label>
+                            <div class="password-input-wrapper">
+                                <input type="password" class="form-input model-key" id="modelKey0" placeholder="可选，单独指定" autocomplete="off">
+                                <button class="toggle-pwd-btn" type="button" title="显示/隐藏">👁</button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Base URL（留空使用全局）</label>
+                            <input type="url" class="form-input model-url" id="modelUrl0" placeholder="可选，单独指定">
+                        </div>
+                    </div>
+
+                    <div class="model-config-card">
+                        <div class="config-card-header"><span class="config-card-icon">🔮</span><span class="config-card-title">AI 助手 2</span></div>
+                        <div class="form-group">
+                            <label class="form-label">模型类型</label>
+                            <select class="form-select" id="modelType1">
+                                <option value="openai">GPT / OpenAI 兼容</option>
+                                <option value="deepseek">DeepSeek</option>
+                                <option value="doubao">豆包 (Doubao)</option>
+                                <option value="claude">Claude (Anthropic)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">模型名称</label>
+                            <div class="model-name-combo">
+                                <select class="form-select model-name-select" id="modelNameSelect1">
+                                    <option value="">-- 选择模型 --</option>
+                                </select>
+                                <input type="text" class="form-input model-name-input" id="modelName1" placeholder="或手动输入模型名称">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">API Key（留空使用全局）</label>
+                            <div class="password-input-wrapper">
+                                <input type="password" class="form-input model-key" id="modelKey1" placeholder="可选，单独指定" autocomplete="off">
+                                <button class="toggle-pwd-btn" type="button" title="显示/隐藏">👁</button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Base URL（留空使用全局）</label>
+                            <input type="url" class="form-input model-url" id="modelUrl1" placeholder="可选，单独指定">
+                        </div>
+                    </div>
+
+                    <div class="model-config-card">
+                        <div class="config-card-header"><span class="config-card-icon">✨</span><span class="config-card-title">AI 助手 3</span></div>
+                        <div class="form-group">
+                            <label class="form-label">模型类型</label>
+                            <select class="form-select" id="modelType2">
+                                <option value="openai">GPT / OpenAI 兼容</option>
+                                <option value="deepseek">DeepSeek</option>
+                                <option value="doubao">豆包 (Doubao)</option>
+                                <option value="claude">Claude (Anthropic)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">模型名称</label>
+                            <div class="model-name-combo">
+                                <select class="form-select model-name-select" id="modelNameSelect2">
+                                    <option value="">-- 选择模型 --</option>
+                                </select>
+                                <input type="text" class="form-input model-name-input" id="modelName2" placeholder="或手动输入模型名称">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">API Key（留空使用全局）</label>
+                            <div class="password-input-wrapper">
+                                <input type="password" class="form-input model-key" id="modelKey2" placeholder="可选，单独指定" autocomplete="off">
+                                <button class="toggle-pwd-btn" type="button" title="显示/隐藏">👁</button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Base URL（留空使用全局）</label>
+                            <input type="url" class="form-input model-url" id="modelUrl2" placeholder="可选，单独指定">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 连接校验 -->
+                <div class="settings-section">
+                    <h3 class="section-title">🔌 连接校验</h3>
+                    <p class="section-desc">选择已有模型或填写自定义配置，测试 API 连通性</p>
+                    <div class="verify-row">
+                        <select class="form-select verify-select" id="verifyModel">
+                            <option value="0">🤖 模型 1</option>
+                            <option value="1">🔮 模型 2</option>
+                            <option value="2">✨ 模型 3</option>
+                            <option value="custom">✏️ 自定义</option>
+                        </select>
+                        <button class="btn btn-primary" id="verifyBtn">🚀 校验</button>
+                    </div>
+                    <div class="verify-custom" id="verifyCustom">
+                        <div class="verify-custom-grid">
+                            <select class="form-select" id="verifyCustomType">
+                                <option value="openai">GPT / OpenAI 兼容</option>
+                                <option value="deepseek">DeepSeek</option>
+                                <option value="doubao">豆包 (Doubao)</option>
+                                <option value="claude">Claude (Anthropic)</option>
+                            </select>
+                            <input type="text" class="form-input" id="verifyCustomName" placeholder="模型名称 (如 claude-sonnet-4-20250514)">
+                            <input type="password" class="form-input" id="verifyCustomKey" placeholder="API Key">
+                            <input type="url" class="form-input" id="verifyCustomUrl" placeholder="Base URL (https://...)">
+                        </div>
+                    </div>
+                    <div class="verify-result" id="verifyResult"></div>
+                </div>
+
+                <!-- 联网搜索设置 -->
+                <div class="settings-section">
+                    <h3 class="section-title">🌐 联网搜索</h3>
+                    <p class="section-desc">开启后，发送消息时先联网搜索，将搜索结果作为参考提供给模型</p>
+                    <div class="form-group">
+                        <label class="form-label">自定义搜索实例（可选）</label>
+                        <input type="url" class="form-input" id="webSearchInstance" placeholder="留空则自动使用内置搜索源，或填写自建 SearXNG 地址">
+                        <p class="section-desc" style="margin-top:4px;font-size:12px;color:var(--text-muted)">
+                            部署到 Vercel 后自动使用服务端代理搜索（无需配置）。<br>
+                            本地开发或自建实例：填写 SearXNG 地址，如 https://your-searxng.example.com<br>
+                            SearXNG Docker 部署：docker run -d -p 8888:8080 searxng/searxng
+                        </p>
+                    </div>
+                </div>
+
+                <!-- 翻译设置 -->
+                <div class="settings-section">
+                    <h3 class="section-title">翻译设置</h3>
+                    <p class="section-desc">选择翻译方式</p>
+                    <div class="translate-source-group" id="translateSourceGroup">
+                        <button class="translate-source-btn" data-source="global">🌐 全局</button>
+                        <button class="translate-source-btn" data-source="model0">🤖 模型 1</button>
+                        <button class="translate-source-btn" data-source="model1">🔮 模型 2</button>
+                        <button class="translate-source-btn" data-source="model2">✨ 模型 3</button>
+                        <button class="translate-source-btn" data-source="browser">🌎 浏览器内置</button>
+                    </div>
+                    <p class="section-desc" style="margin-top:8px;font-size:12px;color:var(--text-muted)">
+                        选择"浏览器内置"：使用 Chrome/Edge 内置翻译 API，无需配置，免费且快速<br>
+                        选择模型：使用对应模型的 API Key 进行翻译
+                    </p>
+                </div>
+
+                <!-- 系统提示词 -->
+                <div class="settings-section">
+                    <h3 class="section-title">系统提示词（可选）</h3>
+                    <textarea class="form-input form-textarea" id="systemPrompt" placeholder="输入系统提示词，所有助手将使用此提示词..." rows="3"></textarea>
+                </div>
+
+                <!-- 界面默认设置 -->
+                <div class="settings-section">
+                    <h3 class="section-title">界面默认</h3>
+                    <p class="section-desc">选择刷新页面后的默认显示方式</p>
+                    <div class="default-view-group" id="defaultViewGroup">
+                        <button class="default-view-btn active" data-view="doubao">🤖 豆包网页</button>
+                        <button class="default-view-btn" data-view="last">💾 保留上次状态</button>
+                    </div>
+                    <p class="section-desc" style="margin-top:8px;font-size:12px;color:var(--text-muted)">
+                        选择"豆包网页"：刷新后只显示豆包网页，所有模型不启用<br>
+                        选择"保留上次状态"：刷新后恢复上次使用的模型和网页配置
+                    </p>
+                </div>
+
+                <!-- 自定义悬浮网页 -->
+                <div class="settings-section">
+                    <h3 class="section-title">自定义悬浮网页</h3>
+                    <p class="section-desc">配置悬浮按钮中最多3个自定义网站，双击悬浮按钮时也会一并打开</p>
+                    <div class="custom-web-list">
+                        <div class="custom-web-item">
+                            <input type="text" class="form-input custom-web-name" id="customWebName0" placeholder="名称（如：我的网站）">
+                            <input type="url" class="form-input custom-web-url" id="customWebUrl0" placeholder="网址（如：https://example.com）">
+                        </div>
+                        <div class="custom-web-item">
+                            <input type="text" class="form-input custom-web-name" id="customWebName1" placeholder="名称（留空则不启用）">
+                            <input type="url" class="form-input custom-web-url" id="customWebUrl1" placeholder="网址">
+                        </div>
+                        <div class="custom-web-item">
+                            <input type="text" class="form-input custom-web-name" id="customWebName2" placeholder="名称（留空则不启用）">
+                            <input type="url" class="form-input custom-web-url" id="customWebUrl2" placeholder="网址">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 数据导入导出 -->
+                <div class="settings-section">
+                    <h3 class="section-title">数据管理</h3>
+                    <p class="section-desc">导出聊天记录、收藏、备忘和设置，或从备份文件恢复</p>
+                    <div class="data-mgmt-buttons">
+                        <button class="btn btn-export" id="exportDataBtn">📤 导出数据</button>
+                        <button class="btn btn-import" id="importDataBtn">📥 导入数据</button>
+                        <input type="file" id="importFileInput" accept=".json" style="display:none">
+                    </div>
+                </div>
+            </div>
+            <div class="settings-footer">
+                <button class="btn btn-secondary" id="resetSettingsBtn">恢复默认</button>
+                <button class="btn btn-primary" id="saveSettingsBtn">保存设置</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== 反推提示词弹窗 ==================== -->
+    <div class="prompt-reverse-overlay" id="promptReverseOverlay">
+        <div class="prompt-reverse-panel">
+            <div class="prompt-reverse-header">
+                <h2>✨ 图片反推提示词</h2>
+                <button class="close-btn" id="closeReverseBtn">&times;</button>
+            </div>
+            <div class="prompt-reverse-body">
+                <!-- 图片预览 -->
+                <div class="reverse-image-area" id="reverseImageArea" style="display:none">
+                    <img id="reverseImagePreview" src="" alt="图片预览">
+                </div>
+
+                <!-- 语言选择 -->
+                <div class="reverse-section">
+                    <label class="reverse-section-title">提示词语言</label>
+                    <div class="reverse-toggle-group">
+                        <button class="reverse-toggle-btn active" data-lang="zh">中文</button>
+                        <button class="reverse-toggle-btn" data-lang="en">English</button>
+                    </div>
+                </div>
+
+                <!-- 平台适配 -->
+                <div class="reverse-section">
+                    <label class="reverse-section-title">适配平台</label>
+                    <div class="reverse-platform-group">
+                        <button class="reverse-platform-btn active" data-platform="mj">🎨 MidJourney</button>
+                        <button class="reverse-platform-btn" data-platform="gpt">💬 GPT</button>
+                        <button class="reverse-platform-btn" data-platform="jimeng">🖼️ 即梦</button>
+                        <button class="reverse-platform-btn" data-platform="sd">⚡ Stable Diffusion</button>
+                        <button class="reverse-platform-btn" data-platform="doubao">🌱 豆包</button>
+                    </div>
+                </div>
+
+                <!-- 结果区域 -->
+                <div class="reverse-section">
+                    <label class="reverse-section-title">生成的提示词</label>
+                    <div class="reverse-result" id="reverseResult">
+                        <span class="reverse-result-placeholder">点击下方按钮生成提示词...</span>
+                    </div>
+                </div>
+            </div>
+            <div class="prompt-reverse-footer">
+                <button class="btn btn-secondary" id="reverseCopyBtn" disabled>📋 复制全部</button>
+                <div class="prompt-reverse-footer-right">
+                    <button class="btn btn-translate" id="reverseTranslateBtn" disabled>🇨🇳 转中文</button>
+                    <button class="btn btn-primary" id="reverseSubmitBtn" disabled>🚀 生成提示词</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast 提示 -->
+    <div class="toast" id="toast"></div>
+
+    <!-- 全局搜索弹窗 -->
+    <div class="search-overlay" id="searchOverlay" style="display:none">
+        <div class="search-panel">
+            <div class="search-header">
+                <div class="search-input-wrap">
+                    <span class="search-input-icon">🔍</span>
+                    <input class="search-input" id="globalSearchInput" type="text" placeholder="搜索所有聊天的内容..." autofocus />
+                    <button class="search-input-clear" id="globalSearchClear">✕</button>
+                </div>
+                <button class="search-close-btn" id="globalSearchClose">取消</button>
+            </div>
+            <div class="search-body" id="globalSearchResults">
+                <div class="search-empty">输入关键词开始搜索</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 收藏消息弹窗 -->
+    <div class="search-overlay" id="bookmarksOverlay" style="display:none">
+        <div class="search-panel">
+            <div class="search-header">
+                <span class="search-title">📌 收藏的消息</span>
+                <button class="search-close-btn" id="bookmarksClose">关闭</button>
+            </div>
+            <div class="search-body" id="bookmarksList">
+                <div class="search-empty">暂无收藏的消息</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 对比模式弹窗 -->
+    <div class="compare-overlay" id="compareOverlay" style="display:none;">
+        <div class="compare-container">
+            <div class="compare-header">
+                <span class="compare-title">🔄 三模型对比</span>
+                <div class="compare-controls">
+                    <button class="compare-nav-btn" id="comparePrev" title="上一轮">◀</button>
+                    <span class="compare-round" id="compareRound">第 1 轮</span>
+                    <button class="compare-nav-btn" id="compareNext" title="下一轮">▶</button>
+                    <label class="compare-diff-toggle">
+                        <input type="checkbox" id="compareDiffToggle" checked>
+                        <span>高亮差异</span>
+                    </label>
+                    <button class="compare-verify-btn" id="compareVerifyBtn" title="调用模型校验各模型回答的准确性">🎯 准确性校验</button>
+                    <button class="compare-merge-btn" id="compareMergeBtn" title="整合各模型回答为最佳答案">💡 整合答案</button>
+                </div>
+                <button class="search-close-btn" id="compareClose">关闭</button>
+            </div>
+            <div class="compare-grid" id="compareGrid"></div>
+            <div class="compare-verify-area" id="compareVerifyArea" style="display:none;">
+                <div class="compare-verify-header">
+                    <span class="compare-verify-title" id="compareVerifyTitle">📊 校验结果</span>
+                    <span class="compare-verify-status" id="compareVerifyStatus"></span>
+                    <button class="compare-verify-close" id="compareVerifyClose">✕</button>
+                </div>
+                <div class="compare-verify-body" id="compareVerifyBody">
+                    <div class="compare-verify-loading">⏳ 校验中，请稍候...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 悬浮小窗口 -->
+    <div class="floating-web-window" id="floatingWebWindow" style="display: none;">
+        <div class="floating-web-header" id="floatingWebHeader">
+            <span class="floating-web-title" id="floatingWebTitle">网页</span>
+            <div class="floating-web-controls">
+                <button class="floating-web-btn" id="floatingWebToggleSize" title="切换大小">📐</button>
+                <button class="floating-web-btn" id="floatingWebToggleOpacity" title="切换透明度">👁</button>
+                <button class="floating-web-btn" id="floatingWebClose" title="关闭">✕</button>
+            </div>
+        </div>
+        <div class="floating-web-content">
+            <iframe class="floating-web-iframe" id="floatingWebIframe" src="" allow="clipboard-read; clipboard-write" sandbox="allow-same-origin allow-scripts allow-forms allow-popups"></iframe>
+        </div>
+    </div>
+
+    <!-- 去水印免责声明弹窗 -->
+    <div class="watermark-disclaimer-overlay" id="watermarkDisclaimerOverlay" style="display: none;" onclick="if(event.target===this)hideWatermarkDisclaimer()">
+        <div class="watermark-disclaimer-panel">
+            <div class="watermark-disclaimer-header">
+                <span class="watermark-disclaimer-icon">⚠️</span>
+                <h2>使用免责声明</h2>
+            </div>
+            <div class="watermark-disclaimer-body">
+                <div class="watermark-disclaimer-content">
+                    <p class="watermark-disclaimer-item">
+                        <span class="watermark-disclaimer-num">1.</span>
+                        本工具仅个人学习自用，禁止商用牟利、批量传播内容
+                    </p>
+                    <p class="watermark-disclaimer-item">
+                        <span class="watermark-disclaimer-num">2.</span>
+                        请勿处理无版权素材，尊重他人著作知识产权
+                    </p>
+                    <p class="watermark-disclaimer-item">
+                        <span class="watermark-disclaimer-num">3.</span>
+                        违规操作引发的纠纷与账号问题，均由使用者自行负责
+                    </p>
+                    <p class="watermark-disclaimer-item">
+                        <span class="watermark-disclaimer-num">4.</span>
+                        第三方服务稳定性不作保障，风险自行承担
+                    </p>
+                </div>
+            </div>
+            <div class="watermark-disclaimer-footer">
+                <a href="https://www.hellotik.app/zh/bilibili" target="_blank" class="watermark-disclaimer-btn" onclick="var h=Math.floor(screen.availHeight*2/3);var w=window.open('https://www.hellotik.app/zh/bilibili','watermark','width=600,height='+h+',left=100,top=50,resizable=yes,scrollbars=yes');if(w){setTimeout(function(){document.getElementById('watermarkDisclaimerOverlay').style.display='none'},100);return false}">确认并打开去水印</a>
+            </div>
+        </div>
+    </div>
+
+    <script src="./js/utils/webSearch.js?v=4"></script>
+    <script src="./js/app.js?v=44"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <script src="./js/screenshot.js?v=1"></script>
+</body>
+</html>
