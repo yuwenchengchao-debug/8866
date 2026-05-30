@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>素材库管理系统</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body {
+            height: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            overflow-y: auto;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+        .card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        .stat-item {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 32px;
+            font-weight: bold;
+        }
+        .stat-label {
+            font-size: 12px;
+            opacity: 0.9;
+            margin-top: 4px;
+        }
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+        }
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        .btn-success:hover {
+            background: #218838;
+        }
+        .key-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .key-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            gap: 12px;
+        }
+        .key-info {
+            flex: 1;
+            min-width: 0;
+        }
+        .key-value {
+            font-family: monospace;
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+        }
+        .key-meta {
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
+        }
+        .key-status {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .status-unused {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status-used {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .status-expired {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .copy-btn {
+            padding: 4px 8px;
+            background: #e9ecef;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .copy-btn:hover {
+            background: #dee2e6;
+        }
+        .message {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 14px;
+        }
+        .message-success {
+            background: #d4edda;
+            color: #155724;
+        }
+        .message-error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .message-info {
+            background: #cce5ff;
+            color: #004085;
+        }
+        .limit-info {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            background: #fff3cd;
+            border-radius: 8px;
+            margin-bottom: 16px;
+        }
+        .limit-text {
+            font-size: 14px;
+            color: #856404;
+        }
+        .limit-count {
+            font-weight: bold;
+            color: #667eea;
+        }
+        .open-btn-wrapper {
+            text-align: center;
+            padding: 20px;
+        }
+        .open-btn {
+            padding: 16px 40px;
+            font-size: 18px;
+        }
+        .divider {
+            height: 1px;
+            background: #e0e0e0;
+            margin: 20px 0;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎬 素材库管理系统</h1>
+            <p>生成卡密并管理素材库访问权限</p>
+        </div>
+
+        <div class="card">
+            <div class="card-title">📊 今日统计</div>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-value" id="todayCount">0</div>
+                    <div class="stat-label">今日已生成</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="remainingCount">10</div>
+                    <div class="stat-label">剩余可生成</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="totalCount">0</div>
+                    <div class="stat-label">总卡密数</div>
+                </div>
+            </div>
+
+            <div class="limit-info">
+                <span class="limit-text">
+                    📅 每日生成上限：<span class="limit-count">10</span> 个卡密
+                    | 卡密有效期：<span class="limit-count">1年</span>
+                </span>
+            </div>
+
+            <div id="message" style="display:none;"></div>
+
+            <button class="btn btn-primary" id="generateBtn" onclick="generateKey()">
+                🔑 生成新卡密
+            </button>
+        </div>
+
+        <div class="card">
+            <div class="card-title">📋 卡密列表</div>
+            <div class="key-list" id="keyList">
+                <div class="empty-state">
+                    <div class="empty-state-icon">📭</div>
+                    <p>暂无卡密，点击上方按钮生成</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">🚀 打开素材库</div>
+            <div class="open-btn-wrapper">
+                <button class="btn btn-success open-btn" onclick="openMaterialLibrary()">
+                    🎬 打开素材管理库
+                </button>
+                <p style="margin-top: 12px; color: #666; font-size: 14px;">
+                    首次使用需要输入卡密激活
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3847/api'
+        const DAILY_LIMIT = 10
+
+        async function loadStats() {
+            try {
+                const res = await fetch(`${API_BASE}/admin/licenses`, {
+                    headers: { 'x-admin-key': 'admin_key_2024_very_secure_xyz' }
+                })
+                const data = await res.json()
+                
+                const licenses = data.licenses || []
+                const today = new Date().toISOString().split('T')[0]
+                const todayLicenses = licenses.filter(l => 
+                    l.created_at && l.created_at.startsWith(today)
+                )
+                
+                document.getElementById('todayCount').textContent = todayLicenses.length
+                document.getElementById('remainingCount').textContent = Math.max(0, DAILY_LIMIT - todayLicenses.length)
+                document.getElementById('totalCount').textContent = licenses.length
+                
+                const generateBtn = document.getElementById('generateBtn')
+                if (todayLicenses.length >= DAILY_LIMIT) {
+                    generateBtn.disabled = true
+                    generateBtn.textContent = '🔒 今日已达上限'
+                }
+                
+                renderKeyList(licenses)
+            } catch (err) {
+                console.error('加载统计失败', err)
+                showMessage('连接服务器失败，请确保素材库服务正在运行', 'error')
+            }
+        }
+
+        function renderKeyList(licenses) {
+            const container = document.getElementById('keyList')
+            const today = new Date().toISOString().split('T')[0]
+            
+            const todayLicenses = licenses.filter(l => 
+                l.created_at && l.created_at.startsWith(today)
+            )
+            
+            if (todayLicenses.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📭</div>
+                        <p>今日暂无卡密，点击上方按钮生成</p>
+                    </div>
+                `
+                return
+            }
+
+            const sorted = [...todayLicenses].sort((a, b) => 
+                new Date(b.created_at) - new Date(a.created_at)
+            )
+
+            container.innerHTML = sorted.map(l => {
+                const isExpired = l.expires_at && new Date() > new Date(l.expires_at)
+                const statusClass = isExpired ? 'status-expired' : (l.used ? 'status-used' : 'status-unused')
+                const statusText = isExpired ? '已过期' : (l.used ? '已使用' : '未使用')
+                const expiresDate = l.expires_at ? new Date(l.expires_at).toLocaleDateString() : '永久'
+                
+                return `
+                    <div class="key-item">
+                        <div class="key-info">
+                            <div class="key-value">${l.key}</div>
+                            <div class="key-meta">
+                                创建: ${new Date(l.created_at).toLocaleString()}
+                                | 有效期至: ${expiresDate}
+                            </div>
+                        </div>
+                        <span class="key-status ${statusClass}">${statusText}</span>
+                        <button class="copy-btn" onclick="copyKey('${l.key}')">复制</button>
+                    </div>
+                `
+            }).join('')
+        }
+
+        async function generateKey() {
+            const todayCount = parseInt(document.getElementById('todayCount').textContent)
+            if (todayCount >= DAILY_LIMIT) {
+                showMessage('今日已达生成上限（10个），请明天再试', 'error')
+                return
+            }
+
+            const btn = document.getElementById('generateBtn')
+            btn.disabled = true
+            btn.textContent = '生成中...'
+
+            try {
+                const res = await fetch(`${API_BASE}/license/generate`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ 
+                        count: 1, 
+                        type: 'annual',
+                        expiresDays: 365
+                    })
+                })
+
+                const data = await res.json()
+
+                if (data.success && data.keys.length > 0) {
+                    const key = data.keys[0]
+                    showMessage(`卡密生成成功！卡密: ${key.key} 有效期: 1年`, 'success')
+                    await loadStats()
+                } else {
+                    showMessage(data.error || '生成失败，请重试', 'error')
+                }
+            } catch (err) {
+                console.error('生成失败', err)
+                showMessage('连接服务器失败', 'error')
+            } finally {
+                btn.disabled = false
+                btn.textContent = '🔑 生成新卡密'
+            }
+        }
+
+        function copyKey(key) {
+            navigator.clipboard.writeText(key).then(() => {
+                showMessage('已复制卡密', 'success')
+            })
+        }
+
+        function openMaterialLibrary() {
+            fetch(`${API_BASE}/admin/open-app`, {
+                headers: { 'x-admin-key': 'admin_key_2024_very_secure_xyz' }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    showMessage(data.message, 'success')
+                } else {
+                    showMessage(data.error, 'error')
+                }
+            })
+            .catch(err => {
+                console.error('启动失败', err)
+                showMessage('连接服务器失败', 'error')
+            })
+        }
+
+        function showMessage(text, type) {
+            const msg = document.getElementById('message')
+            msg.style.display = 'block'
+            msg.className = `message message-${type}`
+            msg.textContent = text
+            
+            if (type !== 'error') {
+                setTimeout(() => {
+                    msg.style.display = 'none'
+                }, 5000)
+            }
+        }
+
+        loadStats()
+        setInterval(loadStats, 30000)
+    </script>
+</body>
+</html>
