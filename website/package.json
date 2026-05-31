@@ -2,6 +2,7 @@
   "name": "video-manager-website",
   "version": "1.0.0",
   "description": "Video Manager Website",
+  "type": "module",
   "dependencies": {
     "@vercel/postgres": "^0.8.0"
   }
