@@ -1,0 +1,8 @@
+{
+  "name": "video-manager-website",
+  "version": "1.0.0",
+  "description": "Video Manager Website",
+  "dependencies": {
+    "@vercel/postgres": "^0.8.0"
+  }
+}
