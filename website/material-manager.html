@@ -294,7 +294,7 @@
 
         async function loadStats() {
             try {
-                const res = await fetch(`${API_BASE}/admin/licenses`, {
+                const res = await fetch(`${API_BASE}/licenses`, {
                     headers: { 'x-admin-key': 'admin_key_2024_very_secure_xyz' }
                 })
                 const data = await res.json()
@@ -378,7 +378,7 @@
             btn.textContent = '生成中...'
 
             try {
-                const res = await fetch(`${API_BASE}/license/generate`, {
+                const res = await fetch(`${API_BASE}/generate`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
