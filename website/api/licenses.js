@@ -1,3 +1,5 @@
+let licenses = [];
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -8,7 +10,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    return res.status(200).json({ licenses: [] });
+    return res.status(200).json({ licenses: licenses });
   } catch (error) {
     return res.status(500).json({ success: false, error: error.message });
   }

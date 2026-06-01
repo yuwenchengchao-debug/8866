@@ -3,344 +3,246 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>素材库管理系统</title>
+    <title>素材库卡密管理</title>
+    <link rel="stylesheet" href="css/style.css">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        html, body {
-            height: 100%;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
             padding: 20px;
-            overflow-y: auto;
+            min-height: 100vh;
         }
         .container {
-            max-width: 900px;
+            max-width: 800px;
             margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
         }
-        .header {
+        h1 {
             text-align: center;
-            color: white;
+            color: #333;
             margin-bottom: 30px;
         }
-        .header h1 {
-            font-size: 28px;
-            margin-bottom: 8px;
-        }
-        .header p {
-            opacity: 0.9;
-            font-size: 14px;
-        }
-        .card {
-            background: white;
-            border-radius: 16px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-            padding: 24px;
-            margin-bottom: 20px;
-        }
-        .card-title {
-            font-size: 18px;
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 16px;
+        .stats {
             display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 16px;
-            margin-bottom: 20px;
+            justify-content: space-around;
+            margin-bottom: 30px;
         }
         .stat-item {
+            text-align: center;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             padding: 20px;
-            border-radius: 12px;
-            text-align: center;
+            border-radius: 15px;
+            flex: 1;
+            margin: 0 10px;
         }
-        .stat-value {
+        .stat-number {
             font-size: 32px;
             font-weight: bold;
+            display: block;
         }
         .stat-label {
-            font-size: 12px;
+            font-size: 14px;
             opacity: 0.9;
-            margin-top: 4px;
         }
         .btn {
-            padding: 12px 24px;
-            border: none;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .btn-primary {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 18px;
+            border-radius: 30px;
+            cursor: pointer;
+            margin-bottom: 30px;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+            transition: transform 0.2s;
         }
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+        .btn:hover:not(:disabled) {
+            transform: scale(1.05);
         }
-        .btn-primary:disabled {
-            opacity: 0.6;
+        .btn:disabled {
+            opacity: 0.5;
             cursor: not-allowed;
-            transform: none;
-        }
-        .btn-secondary {
-            background: #f0f0f0;
-            color: #333;
-        }
-        .btn-secondary:hover {
-            background: #e0e0e0;
-        }
-        .btn-success {
-            background: #28a745;
-            color: white;
-        }
-        .btn-success:hover {
-            background: #218838;
         }
         .key-list {
-            max-height: 300px;
+            max-height: 400px;
             overflow-y: auto;
         }
         .key-item {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 12px 16px;
-            background: #f8f9fa;
-            border-radius: 8px;
-            margin-bottom: 8px;
-            gap: 12px;
-        }
-        .key-info {
-            flex: 1;
-            min-width: 0;
+            padding: 15px;
+            border: 1px solid #eee;
+            border-radius: 10px;
+            margin-bottom: 10px;
         }
         .key-value {
             font-family: monospace;
-            font-size: 14px;
-            font-weight: 600;
+            font-size: 16px;
             color: #333;
+            font-weight: bold;
         }
         .key-meta {
             font-size: 12px;
-            color: #666;
-            margin-top: 4px;
+            color: #999;
+            margin-top: 5px;
         }
         .key-status {
-            padding: 4px 8px;
-            border-radius: 4px;
+            padding: 5px 15px;
+            border-radius: 20px;
             font-size: 12px;
-            font-weight: 500;
+            margin-right: 10px;
         }
         .status-unused {
-            background: #d4edda;
-            color: #155724;
+            background: #e8f5e9;
+            color: #2e7d32;
         }
         .status-used {
-            background: #fff3cd;
-            color: #856404;
-        }
-        .status-expired {
-            background: #f8d7da;
-            color: #721c24;
+            background: #ffebee;
+            color: #c62828;
         }
         .copy-btn {
-            padding: 4px 8px;
-            background: #e9ecef;
+            padding: 8px 20px;
+            background: #667eea;
+            color: white;
             border: none;
-            border-radius: 4px;
+            border-radius: 5px;
             cursor: pointer;
-            font-size: 12px;
-        }
-        .copy-btn:hover {
-            background: #dee2e6;
         }
         .message {
-            padding: 12px 16px;
-            border-radius: 8px;
-            margin-bottom: 16px;
-            font-size: 14px;
-        }
-        .message-success {
-            background: #d4edda;
-            color: #155724;
-        }
-        .message-error {
-            background: #f8d7da;
-            color: #721c24;
-        }
-        .message-info {
-            background: #cce5ff;
-            color: #004085;
-        }
-        .limit-info {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 12px 16px;
-            background: #fff3cd;
-            border-radius: 8px;
-            margin-bottom: 16px;
-        }
-        .limit-text {
-            font-size: 14px;
-            color: #856404;
-        }
-        .limit-count {
-            font-weight: bold;
-            color: #667eea;
-        }
-        .open-btn-wrapper {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
             text-align: center;
-            padding: 20px;
         }
-        .open-btn {
-            padding: 16px 40px;
-            font-size: 18px;
+        .message.success {
+            background: #e8f5e9;
+            color: #2e7d32;
         }
-        .divider {
-            height: 1px;
-            background: #e0e0e0;
-            margin: 20px 0;
+        .message.error {
+            background: #ffebee;
+            color: #c62828;
         }
         .empty-state {
             text-align: center;
-            padding: 40px;
+            padding: 50px;
             color: #999;
         }
         .empty-state-icon {
             font-size: 48px;
-            margin-bottom: 16px;
+            margin-bottom: 10px;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <h1>🎬 素材库管理系统</h1>
-            <p>生成卡密并管理素材库访问权限</p>
-        </div>
-
-        <div class="card">
-            <div class="card-title">📊 今日统计</div>
-            <div class="stats-grid">
-                <div class="stat-item">
-                    <div class="stat-value" id="todayCount">0</div>
-                    <div class="stat-label">今日已生成</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-value" id="remainingCount">10</div>
-                    <div class="stat-label">剩余可生成</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-value" id="totalCount">0</div>
-                    <div class="stat-label">总卡密数</div>
-                </div>
+        <h1>🔑 素材库卡密管理</h1>
+        
+        <div id="message"></div>
+        
+        <div class="stats">
+            <div class="stat-item">
+                <span class="stat-number" id="todayCount">0</span>
+                <span class="stat-label">今日生成</span>
             </div>
-
-            <div class="limit-info">
-                <span class="limit-text">
-                    📅 每日生成上限：<span class="limit-count">10</span> 个卡密
-                    | 卡密有效期：<span class="limit-count">1年</span>
-                </span>
+            <div class="stat-item">
+                <span class="stat-number" id="remainingCount">10</span>
+                <span class="stat-label">剩余可生成</span>
             </div>
-
-            <div id="message" style="display:none;"></div>
-
-            <button class="btn btn-primary" id="generateBtn" onclick="generateKey()">
-                🔑 生成新卡密
-            </button>
-        </div>
-
-        <div class="card">
-            <div class="card-title">📋 卡密列表</div>
-            <div class="key-list" id="keyList">
-                <div class="empty-state">
-                    <div class="empty-state-icon">📭</div>
-                    <p>暂无卡密，点击上方按钮生成</p>
-                </div>
+            <div class="stat-item">
+                <span class="stat-number" id="totalCount">0</span>
+                <span class="stat-label">总卡密数</span>
             </div>
         </div>
 
-        <div class="card">
-            <div class="card-title">🚀 打开素材库</div>
-            <div class="open-btn-wrapper">
-                <button class="btn btn-success open-btn" onclick="openMaterialLibrary()">
-                    🎬 打开素材管理库
-                </button>
-                <p style="margin-top: 12px; color: #666; font-size: 14px;">
-                    首次使用需要输入卡密激活
-                </p>
-            </div>
+        <div style="background: #fff3e0; padding: 15px; border-radius: 10px; margin-bottom: 20px; text-align: center;">
+            📅 每日生成上限：10 个卡密 | 卡密有效期：1年
+        </div>
+
+        <button class="btn" id="generateBtn" onclick="generateKey()">🔑 生成新卡密</button>
+
+        <div class="key-list">
+            <h2 style="margin-bottom: 20px; color: #333;">📋 卡密列表</h2>
+            <div id="keyList"></div>
         </div>
     </div>
 
     <script>
-        // 部署后替换为你的 Vercel URL，例如：
-        // https://your-app.vercel.app/api
-        // https://video-manager-api.vercel.app/api
-        const API_BASE = 'https://8866-two.vercel.app/api'
-        const DAILY_LIMIT = 10
-
+        const API_URL = 'http://175.178.60.63:3847';
+        
+        function showMessage(text, type) {
+            const msg = document.getElementById('message');
+            msg.className = 'message ' + type;
+            msg.textContent = text;
+            setTimeout(() => {
+                msg.textContent = '';
+                msg.className = 'message';
+            }, 3000);
+        }
+        
         async function loadStats() {
             try {
-                // 先测试 API 连接
-                const testRes = await fetch(`${API_BASE}/init-db`)
-                const testData = await testRes.json()
-                console.log('API 测试结果:', testData)
+                const response = await fetch(`${API_URL}/api/admin/licenses`, {
+                    headers: { 'x-admin-key': 'admin_key_2024_very_secure_xyz' }
+                });
+                const data = await response.json();
+                const licenses = data.licenses || [];
                 
-                if (testData.success) {
-                    showMessage(testData.message, 'success')
-                    document.getElementById('todayCount').textContent = '0'
-                    document.getElementById('remainingCount').textContent = '10'
-                    document.getElementById('totalCount').textContent = '0'
-                    renderKeyList([])
+                const today = new Date().toISOString().split('T')[0];
+                const todayLicenses = licenses.filter(l => 
+                    l.created_at && l.created_at.startsWith(today)
+                );
+                
+                document.getElementById('todayCount').textContent = todayLicenses.length;
+                document.getElementById('remainingCount').textContent = Math.max(0, 10 - todayLicenses.length);
+                document.getElementById('totalCount').textContent = licenses.length;
+                
+                const generateBtn = document.getElementById('generateBtn');
+                if (todayLicenses.length >= 10) {
+                    generateBtn.disabled = true;
+                    generateBtn.textContent = '🔒 今日已达上限';
                 } else {
-                    showMessage('API 返回错误: ' + testData.message, 'error')
+                    generateBtn.disabled = false;
+                    generateBtn.textContent = '🔑 生成新卡密';
                 }
+                
+                renderKeyList(licenses);
             } catch (err) {
-                console.error('加载统计失败', err)
-                showMessage('连接服务器失败，请确保素材库服务正在运行', 'error')
+                console.error('加载失败', err);
+                showMessage('加载失败，请检查服务器', 'error');
             }
         }
-
+        
         function renderKeyList(licenses) {
-            const container = document.getElementById('keyList')
-            const today = new Date().toISOString().split('T')[0]
+            const container = document.getElementById('keyList');
+            const today = new Date().toISOString().split('T')[0];
             
-            const todayLicenses = licenses.filter(l => 
-                l.created_at && l.created_at.startsWith(today)
-            )
+            const sorted = [...licenses].sort((a, b) => 
+                new Date(b.created_at) - new Date(a.created_at)
+            );
             
-            if (todayLicenses.length === 0) {
+            if (sorted.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
                         <div class="empty-state-icon">📭</div>
-                        <p>今日暂无卡密，点击上方按钮生成</p>
+                        <p>暂无卡密，点击上方按钮生成</p>
                     </div>
-                `
-                return
+                `;
+                return;
             }
 
-            const sorted = [...todayLicenses].sort((a, b) => 
-                new Date(b.created_at) - new Date(a.created_at)
-            )
-
             container.innerHTML = sorted.map(l => {
-                const isExpired = l.expires_at && new Date() > new Date(l.expires_at)
-                const statusClass = isExpired ? 'status-expired' : (l.used ? 'status-used' : 'status-unused')
-                const statusText = isExpired ? '已过期' : (l.used ? '已使用' : '未使用')
-                const expiresDate = l.expires_at ? new Date(l.expires_at).toLocaleDateString() : '永久'
+                const isExpired = l.expires_at && new Date() > new Date(l.expires_at);
+                const statusClass = isExpired ? 'status-used' : (l.used ? 'status-used' : 'status-unused');
+                const statusText = isExpired ? '已过期' : (l.used ? '已使用' : '未使用');
+                const expiresDate = l.expires_at ? new Date(l.expires_at).toLocaleDateString() : '永久';
                 
                 return `
                     <div class="key-item">
@@ -354,91 +256,51 @@
                         <span class="key-status ${statusClass}">${statusText}</span>
                         <button class="copy-btn" onclick="copyKey('${l.key}')">复制</button>
                     </div>
-                `
-            }).join('')
+                `;
+            }).join('');
         }
-
+        
         async function generateKey() {
-            const todayCount = parseInt(document.getElementById('todayCount').textContent)
-            if (todayCount >= DAILY_LIMIT) {
-                showMessage('今日已达生成上限（10个），请明天再试', 'error')
-                return
-            }
-
-            const btn = document.getElementById('generateBtn')
-            btn.disabled = true
-            btn.textContent = '生成中...'
+            const btn = document.getElementById('generateBtn');
+            btn.disabled = true;
+            btn.textContent = '生成中...';
 
             try {
-                const res = await fetch(`${API_BASE}/generate`, {
+                const response = await fetch(`${API_URL}/api/license/generate`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ 
-                        count: 1, 
-                        type: 'annual',
-                        expiresDays: 365
-                    })
-                })
-
-                const data = await res.json()
-
-                if (data.success && data.keys.length > 0) {
-                    const key = data.keys[0]
-                    showMessage(`卡密生成成功！卡密: ${key.key} 有效期: 1年`, 'success')
-                    await loadStats()
+                    body: JSON.stringify({ count: 1, type: 'annual', expiresDays: 365 })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    const key = data.keys[0].key;
+                    showMessage(`卡密生成成功！卡密: ${key} 有效期: 1年`, 'success');
+                    loadStats();
                 } else {
-                    showMessage(data.error || '生成失败，请重试', 'error')
+                    showMessage(data.error || '生成失败', 'error');
                 }
             } catch (err) {
-                console.error('生成失败', err)
-                showMessage('连接服务器失败', 'error')
+                console.error('生成失败', err);
+                showMessage('生成失败，请检查服务器连接', 'error');
             } finally {
-                btn.disabled = false
-                btn.textContent = '🔑 生成新卡密'
+                btn.disabled = false;
+                btn.textContent = '🔑 生成新卡密';
             }
         }
-
+        
         function copyKey(key) {
             navigator.clipboard.writeText(key).then(() => {
-                showMessage('已复制卡密', 'success')
-            })
+                showMessage('已复制卡密', 'success');
+            });
         }
-
-        function openMaterialLibrary() {
-            fetch(`${API_BASE}/admin/open-app`, {
-                headers: { 'x-admin-key': 'admin_key_2024_very_secure_xyz' }
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
-                    showMessage(data.message, 'success')
-                } else {
-                    showMessage(data.error, 'error')
-                }
-            })
-            .catch(err => {
-                console.error('启动失败', err)
-                showMessage('连接服务器失败', 'error')
-            })
-        }
-
-        function showMessage(text, type) {
-            const msg = document.getElementById('message')
-            msg.style.display = 'block'
-            msg.className = `message message-${type}`
-            msg.textContent = text
-            
-            if (type !== 'error') {
-                setTimeout(() => {
-                    msg.style.display = 'none'
-                }, 5000)
-            }
-        }
-
-        loadStats()
-        setInterval(loadStats, 30000)
+        
+        window.onload = function() {
+            loadStats();
+        };
     </script>
 </body>
 </html>

@@ -1,3 +1,5 @@
+let licenses = [];
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -19,12 +21,18 @@ export default async function handler(req, res) {
       key += chars.charAt(Math.floor(Math.random() * chars.length));
     }
 
+    const newLicense = { key, type: 'permanent', created_at: new Date().toISOString() };
+    licenses.push(newLicense);
+
+    const today = new Date().toISOString().split('T')[0];
+    const todayLicenses = licenses.filter(l => l.created_at.startsWith(today));
+
     return res.status(200).json({ 
       success: true, 
-      keys: [{ key, type: 'permanent', created_at: new Date().toISOString() }],
-      todayCount: 1,
+      keys: [newLicense],
+      todayCount: todayLicenses.length,
       limit: 10,
-      remaining: 9
+      remaining: 10 - todayLicenses.length
     });
   } catch (error) {
     return res.status(500).json({ success: false, error: error.message });
