@@ -294,28 +294,20 @@
 
         async function loadStats() {
             try {
-                const res = await fetch(`${API_BASE}/licenses`, {
-                    headers: { 'x-admin-key': 'admin_key_2024_very_secure_xyz' }
-                })
-                const data = await res.json()
+                // 先测试 API 连接
+                const testRes = await fetch(`${API_BASE}/init-db`)
+                const testData = await testRes.json()
+                console.log('API 测试结果:', testData)
                 
-                const licenses = data.licenses || []
-                const today = new Date().toISOString().split('T')[0]
-                const todayLicenses = licenses.filter(l => 
-                    l.created_at && l.created_at.startsWith(today)
-                )
-                
-                document.getElementById('todayCount').textContent = todayLicenses.length
-                document.getElementById('remainingCount').textContent = Math.max(0, DAILY_LIMIT - todayLicenses.length)
-                document.getElementById('totalCount').textContent = licenses.length
-                
-                const generateBtn = document.getElementById('generateBtn')
-                if (todayLicenses.length >= DAILY_LIMIT) {
-                    generateBtn.disabled = true
-                    generateBtn.textContent = '🔒 今日已达上限'
+                if (testData.success) {
+                    showMessage(testData.message, 'success')
+                    document.getElementById('todayCount').textContent = '0'
+                    document.getElementById('remainingCount').textContent = '10'
+                    document.getElementById('totalCount').textContent = '0'
+                    renderKeyList([])
+                } else {
+                    showMessage('API 返回错误: ' + testData.message, 'error')
                 }
-                
-                renderKeyList(licenses)
             } catch (err) {
                 console.error('加载统计失败', err)
                 showMessage('连接服务器失败，请确保素材库服务正在运行', 'error')
