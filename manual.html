@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>使用手册</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #1a1a2e;
+            color: #e0e0e0;
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            position: relative;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-top: 5px;
+        }
+
+        .gesture-link {
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            text-decoration: none;
+            font-size: 14px;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .gesture-link:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-50%) scale(1.05);
+        }
+
+        @media (max-width: 600px) {
+            .gesture-link {
+                position: static;
+                transform: none;
+                display: inline-flex;
+                margin-top: 10px;
+            }
+            .gesture-link:hover {
+                transform: scale(1.05);
+            }
+        }
+
+        /* 弹窗样式 */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-overlay.show {
+            display: flex;
+        }
+        .modal-content {
+            background: #25253a;
+            border-radius: 16px;
+            padding: 30px;
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+            border: 1px solid rgba(102, 126, 234, 0.4);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        }
+        .modal-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+        .modal-options {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .modal-option {
+            background: #1a1a2e;
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            border-radius: 12px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: left;
+            text-decoration: none;
+            color: #e0e0e0;
+        }
+        .modal-option:hover {
+            background: rgba(102, 126, 234, 0.2);
+            border-color: #667eea;
+            transform: scale(1.02);
+        }
+        .modal-option-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .modal-option-desc {
+            font-size: 13px;
+            color: #888;
+        }
+        .modal-close {
+            margin-top: 16px;
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #888;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        .modal-close:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .section {
+            background: #25253a;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .shortcut-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 12px;
+        }
+
+        .shortcut-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: #1a1a2e;
+            border-radius: 8px;
+        }
+
+        .shortcut-key {
+            background: #3a3a5a;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-family: monospace;
+            color: #667eea;
+            white-space: nowrap;
+        }
+
+        .shortcut-desc {
+            font-size: 14px;
+            color: #ccc;
+        }
+
+        .feature-list {
+            display: grid;
+            gap: 15px;
+        }
+
+        .feature-item {
+            display: flex;
+            gap: 15px;
+            padding: 15px;
+            background: #1a1a2e;
+            border-radius: 8px;
+        }
+
+        .feature-icon {
+            font-size: 28px;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #3a3a5a;
+            border-radius: 10px;
+        }
+
+        .feature-content h3 {
+            font-size: 16px;
+            color: #e0e0e0;
+            margin-bottom: 5px;
+        }
+
+        .feature-content p {
+            font-size: 13px;
+            color: #888;
+            line-height: 1.5;
+        }
+
+        .tip-box {
+            background: rgba(102, 126, 234, 0.1);
+            border-left: 3px solid #667eea;
+            padding: 15px;
+            border-radius: 0 8px 8px 0;
+            margin: 15px 0;
+        }
+
+        .tip-box-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 8px;
+        }
+
+        .tip-box ul {
+            margin-left: 20px;
+            font-size: 13px;
+            color: #aaa;
+        }
+
+        .tip-box li {
+            margin-bottom: 5px;
+        }
+
+        .mode-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .mode-card {
+            background: #1a1a2e;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .mode-card-icon {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .mode-card h4 {
+            font-size: 15px;
+            color: #e0e0e0;
+            margin-bottom: 5px;
+        }
+
+        .mode-card p {
+            font-size: 12px;
+            color: #888;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 30px;
+            color: #666;
+            font-size: 12px;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 15px;
+            }
+            
+            .shortcut-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📖 使用手册</h1>
+        <p>AI 聚合聊天平台 - 功能指南与快捷键说明</p>
+        <button class="gesture-link" onclick="showGestureModal()">✋ 手势特效</button>
+    </div>
+
+    <!-- 手势选择弹窗 -->
+    <div class="modal-overlay" id="gestureModal">
+        <div class="modal-content">
+            <div class="modal-title">选择手势特效版本</div>
+            <div class="modal-options">
+                <a href="./gesture.html" class="modal-option">
+                    <div class="modal-option-title">✨ 简约版</div>
+                    <div class="modal-option-desc">粒子数字 + 爱心特效（推荐低配设备）</div>
+                </a>
+                <a href="./gesture-pro.html" class="modal-option">
+                    <div class="modal-option-title">🔥 忍术版</div>
+                    <div class="modal-option-desc">7种忍术特效：螺旋丸、千鸟、黑洞、陨石等</div>
+                </a>
+            </div>
+            <button class="modal-close" onclick="closeGestureModal()">取消</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- 快捷键 -->
+        <div class="section">
+            <div class="section-title">⌨️ 快捷键</div>
+            <div class="shortcut-grid">
+                <div class="shortcut-item">
+                    <span class="shortcut-key">Alt + S</span>
+                    <span class="shortcut-desc">截图（拖拽选区后自动复制）</span>
+                </div>
+                <div class="shortcut-item">
+                    <span class="shortcut-key">Ctrl + Enter</span>
+                    <span class="shortcut-desc">发送消息</span>
+                </div>
+                <div class="shortcut-item">
+                    <span class="shortcut-key">Shift + Enter</span>
+                    <span class="shortcut-desc">换行</span>
+                </div>
+                <div class="shortcut-item">
+                    <span class="shortcut-key">Esc</span>
+                    <span class="shortcut-desc">取消截图 / 关闭弹窗</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 功能模式 -->
+        <div class="section">
+            <div class="section-title">🎯 功能模式</div>
+            <div class="mode-grid">
+                <div class="mode-card">
+                    <div class="mode-card-icon">🤖</div>
+                    <h4>AI 对话</h4>
+                    <p>多模型并行回答，对比最佳方案</p>
+                </div>
+                <div class="mode-card">
+                    <div class="mode-card-icon">📑</div>
+                    <h4>分类收藏</h4>
+                    <p>收藏常用网站，记录备忘笔记</p>
+                </div>
+                <div class="mode-card">
+                    <div class="mode-card-icon">📝</div>
+                    <h4>剧本校验</h4>
+                    <p>AI智能分析，逐句优化剧本</p>
+                </div>
+                <div class="mode-card">
+                    <div class="mode-card-icon">🔑</div>
+                    <h4>卡密管理</h4>
+                    <p>素材库激活码生成与管理</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 主要功能 -->
+        <div class="section">
+            <div class="section-title">✨ 主要功能</div>
+            <div class="feature-list">
+                <div class="feature-item">
+                    <div class="feature-icon">🫘</div>
+                    <div class="feature-content">
+                        <h3>AI 网页快捷入口</h3>
+                        <p>一键打开多个 AI 网站（豆包、千问、dola、oiioii、小云雀、即梦等），支持管理配置、批量打开。需要安装 Launcher 启动器。</p>
+                    </div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">⚖️</div>
+                    <div class="feature-content">
+                        <h3>对比模式</h3>
+                        <p>点击对话区顶部的「🔄 对比」按钮，将当前会话中所有模型的回答逐轮并排展示，方便横向比较各模型的回答质量。</p>
+                        <p style="margin-top:6px;color:#667eea;font-size:12px;">支持差异高亮、轮次切换、AI 验证和合并回答等功能。</p>
+                    </div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">🌐</div>
+                    <div class="feature-content">
+                        <h3>翻译</h3>
+                        <p>左键嵌入翻译页面，右键打开快速翻译面板。支持中英文互译。</p>
+                    </div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">🎨</div>
+                    <div class="feature-content">
+                        <h3>图片生成</h3>
+                        <p>左键打开嵌入式生图页面。支持自定义绘图 API，可设置图片尺寸。</p>
+                    </div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">🖼️</div>
+                    <div class="feature-content">
+                        <h3>悬浮网页</h3>
+                        <p>左键打开下拉菜单选择网站，右键切换宫格模式。双击快速打开前 N 个网站。</p>
+                    </div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">🚿</div>
+                    <div class="feature-content">
+                        <h3>视频去水印</h3>
+                        <p>支持多种视频平台去水印，一键处理，快速高效。</p>
+                    </div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">📅</div>
+                    <div class="feature-content">
+                        <h3>日历挂件</h3>
+                        <p>首页顶部显示今日日期、农历日期、今日/明日节日、最近节日倒计时。</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 使用技巧 -->
+        <div class="section">
+            <div class="section-title">💡 使用技巧</div>
+            
+            <div class="tip-box">
+                <div class="tip-box-title">输入框</div>
+                <ul>
+                    <li>输入框上方有一个 👁️ 眼睛按钮，点击可隐藏/显示输入框</li>
+                    <li>隐藏输入框后，聊天区域会自动占满整个页面，方便阅读</li>
+                    <li>每次发送消息后，发送的内容会自动复制到剪贴板，方便粘贴到其他地方</li>
+                </ul>
+            </div>
+
+            <div class="tip-box">
+                <div class="tip-box-title">对话模式</div>
+                <ul>
+                    <li>最多可同时开启 3 个 AI 模型进行对比</li>
+                    <li>点击模型名称可展开/收起该面板</li>
+                    <li>支持上传图片进行多模态对话</li>
+                    <li>历史对话自动保存，可随时切换</li>
+                </ul>
+            </div>
+
+            <div class="tip-box">
+                <div class="tip-box-title">收藏备忘</div>
+                <ul>
+                    <li>右键网站可选择新标签页打开（450×650）或复制链接</li>
+                    <li>支持添加自定义分类</li>
+                    <li>点击分类标题可展开/收起</li>
+                </ul>
+            </div>
+
+            <div class="tip-box">
+                <div class="tip-box-title">设置</div>
+                <ul>
+                    <li>在设置中配置 API Key 和 Base URL</li>
+                    <li>支持配置 3 个不同的 AI 模型</li>
+                    <li>可切换亮色/暗色主题</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- 关于 -->
+        <div class="section">
+            <div class="section-title">ℹ️ 关于</div>
+            <p style="font-size: 14px; color: #888; line-height: 1.8;">
+                本工具是一个 AI 聚合聊天平台，支持同时与多个 AI 模型对话、网页嵌入、翻译、图片生成等功能。
+                所有数据保存在浏览器本地存储中。
+            </p>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p>AI 聚合聊天平台 · 使用手册</p>
+    </div>
+
+    <script>
+        function showGestureModal() {
+            document.getElementById('gestureModal').classList.add('show');
+        }
+        function closeGestureModal() {
+            document.getElementById('gestureModal').classList.remove('show');
+        }
+        // 点击弹窗外部关闭
+        document.getElementById('gestureModal').addEventListener('click', function(e) {
+            if (e.target === this) closeGestureModal();
+        });
+        // ESC 键关闭
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') closeGestureModal();
+        });
+    </script>
+</body>
+</html>

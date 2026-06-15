@@ -1,0 +1,2527 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>分镜脚本校验 - AIGC助手</title>
+    <style>
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #fafbfc;
+            --bg-tertiary: #f5f7fa;
+            --bg-hover: #f0f2f5;
+            --bg-input: #f8fafc;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #94a3b8;
+            --border-color: #e5e7eb;
+            --border-light: #f1f5f9;
+            --accent-blue: #3b82f6;
+            --accent-green: #10b981;
+            --accent-red: #ef4444;
+            --accent-yellow: #f59e0b;
+            --accent-orange: #f97316;
+            --accent-purple: #8b5cf6;
+            --gradient-primary: linear-gradient(135deg, #f97316 0%, #fb923c 50%, #fdba74 100%);
+            --gradient-secondary: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            --gradient-success: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+            --gradient-warning: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
+            --gradient-danger: linear-gradient(135deg, #ef4444 0%, #f87171 100%);
+            --radius-sm: 6px;
+            --radius-md: 10px;
+            --radius-lg: 16px;
+            --radius-xl: 20px;
+            --radius-full: 9999px;
+            --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+            --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.08), 0 10px 10px -5px rgba(0, 0, 0, 0.02);
+            --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.03);
+            --transition-fast: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+            --transition-normal: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            --transition-slow: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            height: 100%;
+            min-height: 100vh;
+        }
+
+        body {
+            overflow-y: auto;
+        }
+
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 28px;
+            background: linear-gradient(135deg, #ffffff 0%, #fafbfc 100%);
+            border-bottom: 1px solid var(--border-light);
+            box-shadow: var(--shadow-sm);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .header-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 19px;
+            font-weight: 700;
+            background: var(--gradient-primary);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+        }
+
+        .model-select {
+            padding: 9px 16px;
+            border: 1.5px solid var(--border-color);
+            border-radius: var(--radius-md);
+            background: white;
+            color: var(--text-primary);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all var(--transition-normal);
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 8px center;
+            background-size: 14px;
+            min-width: 120px;
+        }
+
+        .model-select:hover {
+            border-color: var(--accent-orange);
+            background-color: var(--bg-secondary);
+        }
+
+        .model-select:focus {
+            outline: none;
+            border-color: var(--accent-orange);
+            box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.12);
+        }
+
+        .size-select {
+            padding: 7px 14px;
+            border: 1.5px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            background: white;
+            color: var(--text-primary);
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 6px center;
+            background-size: 12px;
+        }
+
+        .size-select:hover {
+            border-color: var(--accent-orange);
+            background-color: var(--bg-secondary);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 10px 18px;
+            border: none;
+            border-radius: var(--radius-md);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all var(--transition-normal);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, transparent 50%);
+            opacity: 0;
+            transition: opacity var(--transition-fast);
+        }
+
+        .btn:hover::before {
+            opacity: 1;
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn:disabled::before {
+            display: none;
+        }
+
+        .btn-primary {
+            background: var(--gradient-primary);
+            color: white;
+            box-shadow: 0 2px 8px rgba(249, 115, 22, 0.25);
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 14px rgba(249, 115, 22, 0.35);
+        }
+
+        .btn-success {
+            background: var(--gradient-success);
+            color: white;
+            box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25);
+        }
+
+        .btn-success:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
+        }
+
+        .btn-outline {
+            background: white;
+            border: 1.5px solid var(--border-color);
+            color: var(--text-secondary);
+        }
+
+        .btn-outline:hover {
+            border-color: var(--accent-orange);
+            color: var(--accent-orange);
+            background: rgba(249, 115, 22, 0.04);
+        }
+
+        .btn-ghost {
+            background: transparent;
+            color: var(--text-secondary);
+            padding: 8px 14px;
+        }
+
+        .btn-ghost:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 9px 16px;
+            background: white;
+            border: 1.5px solid var(--border-color);
+            border-radius: var(--radius-md);
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all var(--transition-normal);
+        }
+
+        .back-btn:hover {
+            background: var(--bg-hover);
+            border-color: var(--accent-orange);
+            color: var(--accent-orange);
+            transform: translateX(-2px);
+        }
+
+        .main-content {
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: 28px;
+        }
+
+        /* 输入区域 */
+        .input-section {
+            background: white;
+            border-radius: var(--radius-xl);
+            border: 1.5px solid var(--border-light);
+            box-shadow: var(--shadow-md);
+            margin-bottom: 28px;
+            overflow: hidden;
+            transition: all var(--transition-normal);
+        }
+
+        .input-section:hover {
+            box-shadow: var(--shadow-lg);
+        }
+
+        .input-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 18px 24px;
+            background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 50%, #fef3c7 100%);
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .input-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--accent-orange);
+        }
+
+        .input-body {
+            padding: 24px;
+        }
+
+        .script-textarea {
+            width: 100%;
+            min-height: 220px;
+            padding: 18px 20px;
+            background: linear-gradient(135deg, #fafbfc 0%, #f8fafc 100%);
+            border: 1.5px solid var(--border-light);
+            border-radius: var(--radius-lg);
+            color: var(--text-primary);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-size: 14px;
+            line-height: 1.75;
+            resize: vertical;
+            transition: all var(--transition-normal);
+        }
+
+        .script-textarea:focus {
+            outline: none;
+            border-color: var(--accent-orange);
+            box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.1);
+            background: white;
+        }
+
+        .script-textarea::placeholder {
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
+        .input-actions {
+            display: flex;
+            gap: 14px;
+            margin-top: 20px;
+            justify-content: flex-end;
+        }
+
+        /* 卡片列表区域 */
+        .cards-section {
+            display: none;
+        }
+
+        .cards-section.show {
+            display: block;
+        }
+
+        .cards-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+            padding: 16px 20px;
+            background: white;
+            border-radius: var(--radius-lg);
+            border: 1.5px solid var(--border-light);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .header-right-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .cards-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .cards-title::before {
+            content: '🎬';
+            font-size: 18px;
+        }
+
+        .cards-count {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-left: 12px;
+            padding: 4px 10px;
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-full);
+        }
+
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+            gap: 22px;
+        }
+
+        .cards-grid.small {
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 10px;
+        }
+
+        .cards-grid.small .storyboard-card {
+            font-size: 11px;
+        }
+
+        .cards-grid.small .card-header,
+        .cards-grid.small .card-body,
+        .cards-grid.small .card-footer {
+            padding: 8px 10px;
+        }
+
+        .cards-grid.small-medium {
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 15px;
+        }
+
+        .cards-grid.small-medium .storyboard-card {
+            font-size: 12.5px;
+        }
+
+        .cards-grid.small-medium .card-header,
+        .cards-grid.small-medium .card-body,
+        .cards-grid.small-medium .card-footer {
+            padding: 12px 14px;
+        }
+
+        .cards-grid.medium-large {
+            grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+            gap: 22px;
+        }
+
+        .cards-grid.medium-large .storyboard-card {
+            font-size: 13.5px;
+        }
+
+        .cards-grid.medium-large .card-header,
+        .cards-grid.medium-large .card-body,
+        .cards-grid.medium-large .card-footer {
+            padding: 16px 18px;
+        }
+
+        .cards-grid.large {
+            grid-template-columns: repeat(auto-fill, minmax(440px, 1fr));
+            gap: 24px;
+        }
+
+        .cards-grid.large .storyboard-card {
+            font-size: 14px;
+        }
+
+        .cards-grid.large .card-header,
+        .cards-grid.large .card-body,
+        .cards-grid.large .card-footer {
+            padding: 18px 20px;
+        }
+
+        /* 分镜卡片 */
+        .storyboard-card {
+            background: white;
+            border-radius: var(--radius-xl);
+            border: 1.5px solid var(--border-light);
+            box-shadow: var(--shadow-card);
+            overflow: hidden;
+            transition: all var(--transition-normal);
+            position: relative;
+        }
+
+        .storyboard-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, var(--accent-orange), transparent);
+            opacity: 0;
+            transition: opacity var(--transition-normal);
+        }
+
+        .storyboard-card:hover::before {
+            opacity: 1;
+        }
+
+        .storyboard-card:hover {
+            box-shadow: var(--shadow-lg);
+            transform: translateY(-2px);
+        }
+
+        .storyboard-card.add {
+            border-color: rgba(16, 185, 129, 0.3);
+        }
+
+        .storyboard-card.add::before {
+            background: linear-gradient(90deg, transparent, var(--accent-green), transparent);
+        }
+
+        .storyboard-card.remove {
+            border-color: rgba(239, 68, 68, 0.3);
+        }
+
+        .storyboard-card.remove::before {
+            background: linear-gradient(90deg, transparent, var(--accent-red), transparent);
+        }
+
+        .storyboard-card.change {
+            border-color: rgba(245, 158, 11, 0.3);
+        }
+
+        .storyboard-card.change::before {
+            background: linear-gradient(90deg, transparent, var(--accent-yellow), transparent);
+        }
+
+        .storyboard-card.adjust {
+            border-color: rgba(59, 130, 246, 0.3);
+        }
+
+        .storyboard-card.adjust::before {
+            background: linear-gradient(90deg, transparent, var(--accent-blue), transparent);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px;
+            background: linear-gradient(135deg, #fafbfc 0%, #f5f7fa 100%);
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .card-title {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .card-shot-number {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text-primary);
+            background: var(--gradient-primary);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .card-duration {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            padding: 5px 12px;
+            background: white;
+            border-radius: var(--radius-full);
+            border: 1.5px solid var(--border-light);
+            transition: all var(--transition-fast);
+        }
+
+        .card-duration:hover {
+            border-color: var(--accent-orange);
+            color: var(--accent-orange);
+        }
+
+        .card-type {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 14px;
+            border-radius: var(--radius-full);
+            font-size: 12px;
+            font-weight: 600;
+            transition: all var(--transition-fast);
+        }
+
+        .card-type.add {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(34, 197, 94, 0.08) 100%);
+            color: var(--accent-green);
+            border: 1.5px solid rgba(16, 185, 129, 0.2);
+        }
+
+        .card-type.remove {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.12) 0%, rgba(239, 68, 68, 0.08) 100%);
+            color: var(--accent-red);
+            border: 1.5px solid rgba(239, 68, 68, 0.2);
+        }
+
+        .card-type.change {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(245, 158, 11, 0.08) 100%);
+            color: var(--accent-yellow);
+            border: 1.5px solid rgba(245, 158, 11, 0.2);
+        }
+
+        .card-type.adjust {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.12) 0%, rgba(59, 130, 246, 0.08) 100%);
+            color: var(--accent-blue);
+            border: 1.5px solid rgba(59, 130, 246, 0.2);
+        }
+
+        .card-type.unchanged {
+            background: linear-gradient(135deg, var(--bg-tertiary) 0%, var(--bg-secondary) 100%);
+            color: var(--text-muted);
+            border: 1.5px solid var(--border-light);
+        }
+
+        .card-body {
+            padding: 18px 20px;
+        }
+
+        .card-field {
+            margin-bottom: 16px;
+        }
+
+        .card-field:last-child {
+            margin-bottom: 0;
+        }
+
+        .card-field-label {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+        }
+
+        .card-field-content {
+            font-size: 14px;
+            line-height: 1.7;
+            color: var(--text-primary);
+        }
+
+        .card-field-content.highlight-add {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.18) 0%, rgba(34, 197, 94, 0.12) 100%);
+            padding: 4px 8px;
+            border-radius: var(--radius-sm);
+            border-bottom: 2px solid var(--accent-green);
+            box-shadow: 0 1px 3px rgba(16, 185, 129, 0.1);
+        }
+
+        .card-field-content.highlight-remove {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.18) 0%, rgba(239, 68, 68, 0.12) 100%);
+            padding: 4px 8px;
+            border-radius: var(--radius-sm);
+            border-bottom: 2px solid var(--accent-red);
+            text-decoration: line-through;
+            text-decoration-color: var(--accent-red);
+            box-shadow: 0 1px 3px rgba(239, 68, 68, 0.1);
+        }
+
+        .card-field-content.highlight-change {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.18) 0%, rgba(245, 158, 11, 0.12) 100%);
+            padding: 4px 8px;
+            border-radius: var(--radius-sm);
+            border-bottom: 2px solid var(--accent-yellow);
+            box-shadow: 0 1px 3px rgba(245, 158, 11, 0.1);
+        }
+
+        .card-field-content.highlight-adjust {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.18) 0%, rgba(59, 130, 246, 0.12) 100%);
+            padding: 4px 8px;
+            border-radius: var(--radius-sm);
+            border-bottom: 2px solid var(--accent-blue);
+            box-shadow: 0 1px 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .card-analysis {
+            background: linear-gradient(135deg, var(--bg-tertiary) 0%, var(--bg-secondary) 100%);
+            border-radius: var(--radius-md);
+            padding: 14px 16px;
+            margin-top: 16px;
+            border: 1px solid var(--border-light);
+        }
+
+        .card-problem {
+            font-size: 12px;
+            color: #dc2626;
+            margin-bottom: 10px;
+            padding: 8px 10px;
+            background: rgba(239, 68, 68, 0.08);
+            border-radius: var(--radius-sm);
+            border-left: 3px solid #dc2626;
+        }
+
+        .card-problem::before {
+            content: "⚠️ ";
+            font-size: 11px;
+        }
+
+        .card-effect {
+            font-size: 12px;
+            color: #166534;
+            padding: 8px 10px;
+            background: rgba(16, 185, 129, 0.08);
+            border-radius: var(--radius-sm);
+            border-left: 3px solid #166534;
+        }
+
+        .card-effect::before {
+            content: "✨ ";
+            font-size: 11px;
+        }
+
+        .card-footer {
+            display: flex;
+            gap: 12px;
+            padding: 16px 20px;
+            background: linear-gradient(135deg, #fafbfc 0%, #f5f7fa 100%);
+            border-top: 1px solid var(--border-light);
+        }
+
+        .card-btn {
+            flex: 1;
+            padding: 11px 18px;
+            border: none;
+            border-radius: var(--radius-md);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all var(--transition-normal);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card-btn::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.25) 0%, transparent 50%);
+            opacity: 0;
+            transition: opacity var(--transition-fast);
+        }
+
+        .card-btn:hover::before {
+            opacity: 1;
+        }
+
+        .card-btn:active {
+            transform: scale(0.98);
+        }
+
+        .card-btn-accept {
+            background: var(--gradient-success);
+            color: white;
+            box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25);
+        }
+
+        .card-btn-accept:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
+        }
+
+        .card-btn-accept:hover {
+            background: #16a34a;
+        }
+
+        .card-btn-reject {
+            background: white;
+            border: 1px solid var(--accent-red);
+            color: var(--accent-red);
+        }
+
+        .card-btn-reject:hover {
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        /* 拖拽样式 */
+        .storyboard-card.dragging {
+            opacity: 0.5;
+            transform: rotate(3deg);
+            cursor: grabbing !important;
+        }
+
+        .storyboard-card.drag-over {
+            border-color: var(--accent-orange);
+            border-style: dashed;
+            background: rgba(249, 115, 22, 0.05);
+        }
+
+        .storyboard-card.drag-ghost {
+            opacity: 0.3;
+            background: var(--accent-orange);
+        }
+
+        .card-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .card-action-btn {
+            width: 28px;
+            height: 28px;
+            border: none;
+            border-radius: var(--radius-sm);
+            background: transparent;
+            color: var(--text-muted);
+            font-size: 14px;
+            cursor: pointer;
+            transition: all var(--transition);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .card-action-btn:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+
+        /* 编辑模式样式 */
+        .card-editing {
+            border-color: var(--accent-orange);
+            box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
+        }
+
+        .edit-input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-family: inherit;
+            background: white;
+            color: var(--text-primary);
+            transition: all var(--transition);
+        }
+
+        .edit-input:focus {
+            outline: none;
+            border-color: var(--accent-orange);
+        }
+
+        .edit-textarea {
+            width: 100%;
+            min-height: 80px;
+            padding: 8px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-family: inherit;
+            background: white;
+            color: var(--text-primary);
+            resize: vertical;
+            transition: all var(--transition);
+        }
+
+        .edit-textarea:focus {
+            outline: none;
+            border-color: var(--accent-orange);
+        }
+
+        .edit-footer {
+            display: flex;
+            gap: 10px;
+            padding: 14px 18px;
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border-color);
+        }
+
+        .edit-btn {
+            flex: 1;
+            padding: 10px 16px;
+            border: none;
+            border-radius: var(--radius-md);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all var(--transition);
+        }
+
+        .edit-btn-save {
+            background: var(--accent-green);
+            color: white;
+        }
+
+        .edit-btn-cancel {
+            background: white;
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+        }
+
+        /* 原文对比样式 */
+        .card-field-original {
+            margin-bottom: 6px;
+            padding: 8px 12px;
+            background: #f8fafc;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .card-field-modified {
+            padding: 8px 12px;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .card-field-original .field-label,
+        .card-field-modified .field-label {
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-right: 8px;
+            font-size: 12px;
+        }
+
+        .card-field-original .field-text,
+        .card-field-modified .field-text {
+            color: var(--text-primary);
+        }
+
+        .highlight-change {
+            background: rgba(245, 158, 11, 0.15);
+            border-bottom: 2px solid var(--accent-yellow);
+        }
+
+        .highlight-add {
+            background: rgba(34, 197, 94, 0.15);
+            border-bottom: 2px solid var(--accent-green);
+        }
+
+        .highlight-remove {
+            background: rgba(239, 68, 68, 0.15);
+            border-bottom: 2px solid var(--accent-red);
+            text-decoration: line-through;
+        }
+
+        .highlight-adjust {
+            background: rgba(59, 130, 246, 0.15);
+            border-bottom: 2px solid var(--accent-blue);
+        }
+
+        /* 导出区域 */
+        .export-section {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 24px;
+        }
+
+        /* 下拉菜单 */
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        .dropdown-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .dropdown-arrow {
+            font-size: 10px;
+            opacity: 0.7;
+            transition: transform var(--transition);
+        }
+
+        .dropdown-menu {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            min-width: 160px;
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-lg);
+            padding: 4px;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-8px);
+            transition: all var(--transition);
+            z-index: 1000;
+        }
+
+        .dropdown-menu.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .dropdown-item {
+            display: block;
+            width: 100%;
+            padding: 10px 14px;
+            background: none;
+            border: none;
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            font-size: 13px;
+            text-align: left;
+            cursor: pointer;
+            transition: all var(--transition);
+        }
+
+        .dropdown-item:hover {
+            background: var(--bg-hover);
+        }
+
+        /* 模态框 */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-xl);
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow: hidden;
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            width: 32px;
+            height: 32px;
+            border: none;
+            border-radius: var(--radius-md);
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+            font-size: 20px;
+            cursor: pointer;
+            transition: all var(--transition);
+        }
+
+        .modal-close:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+
+        .modal-body {
+            padding: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .prompt-textarea {
+            width: 100%;
+            min-height: 250px;
+            padding: 14px;
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            font-family: inherit;
+            font-size: 13px;
+            line-height: 1.6;
+            resize: vertical;
+        }
+
+        .prompt-textarea:focus {
+            outline: none;
+            border-color: var(--accent-orange);
+        }
+
+        .modal-tip {
+            margin-top: 12px;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .modal-tip code {
+            padding: 2px 6px;
+            background: var(--bg-secondary);
+            border-radius: 4px;
+            font-size: 11px;
+        }
+
+        .modal-footer {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            padding: 16px 20px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            padding: 12px 20px;
+            background: rgba(30, 41, 59, 0.9);
+            color: white;
+            border-radius: var(--radius-md);
+            font-size: 13px;
+            opacity: 0;
+            visibility: hidden;
+            transition: all var(--transition);
+            z-index: 9999;
+        }
+
+        .toast.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .toast.error {
+            background: rgba(239, 68, 68, 0.9);
+        }
+
+        .toast.success {
+            background: rgba(34, 197, 94, 0.9);
+        }
+
+        /* 最终成品视图 */
+        .final-section {
+            margin-top: 24px;
+        }
+
+        .final-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding: 16px 20px;
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border-radius: var(--radius-lg);
+            border: 1px solid #fcd34d;
+        }
+
+        .final-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #92400e;
+        }
+
+        .final-count {
+            font-size: 13px;
+            color: #a16207;
+            margin-left: 12px;
+        }
+
+        .final-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .final-content {
+            background: white;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow-md);
+            padding: 24px;
+            font-family: 'Times New Roman', serif;
+            line-height: 1.8;
+        }
+
+        .final-shot {
+            margin-bottom: 32px;
+            padding-bottom: 24px;
+            border-bottom: 1px dashed var(--border-color);
+        }
+
+        .final-shot:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+
+        .final-shot-number {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--accent-orange);
+            margin-bottom: 8px;
+        }
+
+        .final-shot-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 12px;
+        }
+
+        .final-shot-meta {
+            display: flex;
+            gap: 20px;
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+        }
+
+        .final-shot-description {
+            font-size: 14px;
+            color: var(--text-primary);
+            margin-bottom: 12px;
+            text-indent: 2em;
+        }
+
+        .final-shot-dialogue {
+            font-size: 14px;
+            color: #1e40af;
+            padding-left: 2em;
+            font-style: italic;
+        }
+
+        .final-export {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 24px;
+        }
+
+        /* 空状态 */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-muted);
+        }
+
+        .empty-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+        }
+
+        .empty-text {
+            font-size: 15px;
+        }
+
+        /* 响应式 */
+        @media (max-width: 768px) {
+            header {
+                flex-direction: column;
+                gap: 12px;
+                padding: 12px 16px;
+            }
+
+            .header-left, .header-right {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .cards-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .main-content {
+                padding: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-left">
+            <div class="header-title">📽️ 分镜脚本校验</div>
+            <div class="header-actions">
+                <select class="model-select" id="modelSelect" onchange="saveModelSelection()">
+                    <option value="doubao">🌱 豆包</option>
+                    <option value="deepseek">🔮 DeepSeek</option>
+                    <option value="openai">🤖 GPT</option>
+                    <option value="claude">🧠 Claude</option>
+                </select>
+                <button class="btn btn-outline" onclick="openPromptModal()" title="设置提示词">
+                    <span>⚙️</span>
+                </button>
+                <button class="btn btn-primary" id="optimizeBtn" onclick="startOptimize()">
+                    <span>✨</span>
+                    <span>AI 校验优化</span>
+                </button>
+            </div>
+        </div>
+        <div class="header-right">
+            <button class="back-btn" onclick="goBack()">
+                <span>←</span>
+                <span>返回</span>
+            </button>
+        </div>
+    </header>
+
+    <div class="main-content">
+        <!-- 输入区域 -->
+        <div class="input-section" id="inputSection">
+            <div class="input-header">
+                <div class="input-title">
+                    <span>📝</span>
+                    <span>输入分镜脚本</span>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-outline" id="restoreBtn" onclick="restoreShots()" style="padding: 6px 12px; font-size: 12px; display: none;">
+                        ↩️ 恢复分镜
+                    </button>
+                    <button class="btn btn-outline" onclick="loadSample()" style="padding: 6px 12px; font-size: 12px;">
+                        📋 加载示例
+                    </button>
+                </div>
+            </div>
+            <div class="input-body">
+                <textarea class="script-textarea" id="scriptTextarea" placeholder="请输入分镜脚本内容...
+
+格式示例：
+镜号1: 全景-客厅日景
+时长: 3秒
+画面: 阳光透过落地窗洒在米色沙发上
+台词: 李明: 今天天气真好
+
+镜号2: 中景-李明
+时长: 2秒
+..."></textarea>
+                <div class="input-actions">
+                    <button class="btn btn-outline" onclick="clearInput()">清空</button>
+                    <button class="btn btn-primary" onclick="parseScriptDirectly()">
+                        <span>🎬</span>
+                        <span>直接分镜</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 提示词设置模态框 -->
+        <div class="modal-overlay" id="promptModal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>⚙️ 设置提示词</h3>
+                    <button class="modal-close" onclick="closePromptModal()">×</button>
+                </div>
+                <div class="modal-body">
+                    <textarea class="prompt-textarea" id="promptTextarea" placeholder="输入自定义提示词...&#10;&#10;使用 {script} 作为剧本内容的占位符"></textarea>
+                    <p class="modal-tip">💡 使用 <code>{script}</code> 作为剧本内容的占位符</p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline" onclick="resetPrompt()">恢复默认</button>
+                    <button class="btn btn-primary" onclick="savePrompt()">保存设置</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 卡片列表区域 -->
+        <div class="cards-section" id="cardsSection">
+            <div class="cards-header">
+                <div>
+                    <span class="cards-title">分镜卡片</span>
+                    <span class="cards-count" id="cardsCount"></span>
+                </div>
+                <div class="header-right-actions">
+                    <select class="size-select" id="sizeSelect" onchange="changeLayoutSize()">
+                        <option value="small">小</option>
+                        <option value="small-medium">中偏小</option>
+                        <option value="medium" selected>中</option>
+                        <option value="medium-large">中偏大</option>
+                        <option value="large">大</option>
+                    </select>
+                    <button class="btn btn-outline" onclick="addNewCard()" style="padding: 6px 12px; font-size: 12px;">
+                        ➕ 新增分镜
+                    </button>
+                    <div class="dropdown">
+                        <button class="btn btn-success dropdown-toggle" onclick="toggleExportMenu()">
+                            <span>📋</span>
+                            <span>导出</span>
+                            <span class="dropdown-arrow">▼</span>
+                        </button>
+                        <div class="dropdown-menu" id="exportMenu">
+                            <button class="dropdown-item" onclick="exportToClipboard()">📋 复制到剪贴板</button>
+                            <button class="dropdown-item" onclick="exportToTxt()">📝 导出为TXT</button>
+                            <button class="dropdown-item" onclick="exportToDocx()">📄 导出为DOCX</button>
+                            <button class="dropdown-item" onclick="exportToJson()">📊 导出为JSON</button>
+                        </div>
+                    </div>
+                    <button class="btn btn-success" onclick="acceptAllShots()" style="padding: 6px 14px; font-size: 12px;" title="接受所有AI建议并进入成品视图">
+                        ✓ 同意全部并完成
+                    </button>
+                    <button class="btn btn-primary" onclick="showFinalView()" style="padding: 6px 14px; font-size: 12px;" title="已手动确认完，直接进入成品视图">
+                        🎬 直接完成
+                    </button>
+                    <button class="btn btn-outline" onclick="showInput()" style="padding: 6px 12px; font-size: 12px;">
+                        ← 重新编辑
+                    </button>
+                </div>
+            </div>
+            <div class="cards-grid" id="cardsGrid"></div>
+        </div>
+
+        <!-- 最终成品视图 -->
+        <div class="final-section" id="finalSection" style="display: none;">
+            <div class="final-header">
+                <div>
+                    <span class="final-title">🎬 分镜脚本成品</span>
+                    <span class="final-count" id="finalCount"></span>
+                </div>
+                <div class="final-actions">
+                    <button class="btn btn-outline" onclick="backToCards()" style="padding: 6px 14px; font-size: 12px;">
+                        ← 返回编辑
+                    </button>
+                </div>
+            </div>
+            <div class="final-content" id="finalContent"></div>
+            <div class="final-export">
+                <div class="dropdown">
+                    <button class="btn btn-success dropdown-toggle" onclick="toggleFinalExportMenu()">
+                        <span>📋</span>
+                        <span>导出成品</span>
+                        <span class="dropdown-arrow">▼</span>
+                    </button>
+                    <div class="dropdown-menu" id="finalExportMenu">
+                        <button class="dropdown-item" onclick="exportToClipboard()">📋 复制到剪贴板</button>
+                        <button class="dropdown-item" onclick="exportToTxt()">📝 导出为TXT</button>
+                        <button class="dropdown-item" onclick="exportToDocx()">� 导出为DOCX</button>
+                        <button class="dropdown-item" onclick="exportToJson()">� 导出为JSON</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        const scriptTextarea = document.getElementById('scriptTextarea');
+        const inputSection = document.getElementById('inputSection');
+        const cardsSection = document.getElementById('cardsSection');
+        const cardsGrid = document.getElementById('cardsGrid');
+        const cardsCount = document.getElementById('cardsCount');
+        const optimizeBtn = document.getElementById('optimizeBtn');
+        const modelSelect = document.getElementById('modelSelect');
+        const toast = document.getElementById('toast');
+
+        let shots = [];
+        let deletedShotIds = new Set();
+
+        const defaultPrompt = `你是专业的分镜脚本优化师。请分析用户提供的分镜脚本，按镜头逐个优化，严格按照以下JSON格式返回结果。
+
+输入的剧本格式可能包含：镜号、时长、画面、台词、角度等信息。
+
+返回格式要求：
+{
+  "shots": [
+    {
+      "id": "shot_1",
+      "shotNumber": "1",
+      "title": "优化后的镜头标题",
+      "originalTitle": "原始镜头标题",
+      "duration": "3秒",
+      "description": "优化后的画面描述",
+      "originalDescription": "原始画面描述",
+      "dialogue": "优化后的台词",
+      "originalDialogue": "原始台词",
+      "angle": "全景",
+      "type": "unchanged/新增/删除/替换/调整",
+      "problem": "这段原文存在的具体问题，1-2句话（如果没有问题则为空字符串）",
+      "effect": "优化后能带来的具体提升，1-2句话（如果没有改动则为空字符串）"
+    }
+  ]
+}
+
+注意事项：
+1. 只返回JSON格式，不要任何多余的文字、解释或markdown格式
+2. 每个镜头必须有一个唯一id
+3. 保留原始内容在original开头的字段中，优化后的内容在对应的字段中
+4. type字段表示改动类型：unchanged表示无改动，新增/删除/替换/调整表示有改动
+5. problem和effect只在有改动时才填写
+
+以下是需要优化的分镜脚本：
+{script}`;
+
+        function showToast(message, type = '') {
+            toast.textContent = message;
+            toast.className = 'toast ' + type;
+            void toast.offsetWidth;
+            toast.classList.add('show');
+            clearTimeout(toast._hideTimer);
+            toast._hideTimer = setTimeout(() => toast.classList.remove('show'), 2500);
+        }
+
+        function openPromptModal() {
+            const promptModal = document.getElementById('promptModal');
+            const promptTextarea = document.getElementById('promptTextarea');
+            promptTextarea.value = getCustomPrompt();
+            promptModal.style.display = 'flex';
+        }
+
+        function closePromptModal() {
+            const promptModal = document.getElementById('promptModal');
+            promptModal.style.display = 'none';
+        }
+
+        function getCustomPrompt() {
+            const saved = localStorage.getItem('storyboard-prompt');
+            return saved || defaultPrompt;
+        }
+
+        function savePrompt() {
+            const promptTextarea = document.getElementById('promptTextarea');
+            localStorage.setItem('storyboard-prompt', promptTextarea.value);
+            closePromptModal();
+            showToast('提示词已保存', 'success');
+        }
+
+        function resetPrompt() {
+            const promptTextarea = document.getElementById('promptTextarea');
+            promptTextarea.value = defaultPrompt;
+            localStorage.removeItem('storyboard-prompt');
+            showToast('已恢复默认提示词', 'success');
+        }
+
+        function clearInput() {
+            scriptTextarea.value = '';
+            showToast('已清空', 'success');
+        }
+
+        function parseScriptDirectly() {
+            const script = scriptTextarea.value.trim();
+            if (!script) {
+                showToast('请先输入分镜脚本内容', 'warning');
+                return;
+            }
+            
+            shots = [];
+            deletedShotIds.clear();
+            
+            const lines = script.split('\n');
+            let currentShot = null;
+            
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line) continue;
+                
+                if (line.startsWith('镜号')) {
+                    if (currentShot) {
+                        shots.push(currentShot);
+                    }
+                    const match = line.match(/镜号(\d+)\s*[：:]\s*(.+)?/);
+                    currentShot = {
+                        id: 'shot_' + Date.now() + '_' + i,
+                        shotNumber: match ? match[1] : String(shots.length + 1),
+                        title: match && match[2] ? match[2].trim() : '',
+                        duration: '',
+                        description: '',
+                        dialogue: '',
+                        angle: '',
+                        type: 'unchanged'
+                    };
+                } else if (line.startsWith('时长')) {
+                    if (currentShot) {
+                        const match = line.match(/时长\s*[：:]\s*(.+)/);
+                        currentShot.duration = match ? match[1].trim() : '';
+                    }
+                } else if (line.startsWith('角度') || line.startsWith('景别')) {
+                    if (currentShot) {
+                        const match = line.match(/(角度|景别)\s*[：:]\s*(.+)/);
+                        currentShot.angle = match ? match[2].trim() : '';
+                    }
+                } else if (line.startsWith('画面') || line.startsWith('描述')) {
+                    if (currentShot) {
+                        const match = line.match(/(画面|描述)\s*[：:]\s*(.+)/);
+                        currentShot.description = match ? match[2].trim() : '';
+                    }
+                } else if (line.startsWith('台词')) {
+                    if (currentShot) {
+                        const match = line.match(/台词\s*[：:]\s*(.+)/);
+                        currentShot.dialogue = match ? match[1].trim() : '';
+                    }
+                } else if (currentShot) {
+                    if (currentShot.description) {
+                        currentShot.description += '\n' + line;
+                    } else {
+                        currentShot.description = line;
+                    }
+                }
+            }
+            
+            if (currentShot) {
+                shots.push(currentShot);
+            }
+            
+            if (shots.length === 0) {
+                showToast('未识别到分镜内容，请按格式输入', 'warning');
+                return;
+            }
+            
+            renderCards();
+            saveToStorage();
+            document.getElementById('inputSection').style.display = 'none';
+            document.getElementById('cardsSection').classList.add('show');
+            showToast('已解析分镜脚本', 'success');
+        }
+
+        function loadSample() {
+            scriptTextarea.value = `镜号1: 全景-客厅日景
+时长: 3秒
+画面: 阳光透过落地窗洒在米色沙发上，茶几上放着一杯咖啡
+台词: 李明: 今天天气真好
+
+镜号2: 中景-李明
+时长: 2秒
+画面: 李明从沙发上站起来
+台词: 李明: 我们出去走走吧
+
+镜号3: 近景-王芳
+时长: 2秒
+画面: 王芳抬头看向李明
+台词: 王芳: 好啊，正好闷得慌
+
+镜号4: 全景-客厅
+时长: 3秒
+画面: 两人走向玄关
+台词:`;
+            showToast('已加载示例', 'success');
+        }
+
+        function showInput() {
+            inputSection.style.display = 'block';
+            cardsSection.classList.remove('show');
+        }
+
+        function showCards() {
+            inputSection.style.display = 'none';
+            cardsSection.classList.add('show');
+        }
+
+        async function startOptimize() {
+            const text = scriptTextarea.value.trim();
+            if (!text) {
+                showToast('请先输入分镜脚本', 'error');
+                return;
+            }
+
+            optimizeBtn.disabled = true;
+            optimizeBtn.innerHTML = '<span>⏳</span><span>解析中...</span>';
+
+            try {
+                const result = await callAI(text);
+                parseShots(result);
+                renderCards();
+                showCards();
+                showToast('解析完成，共 ' + shots.length + ' 个分镜', 'success');
+            } catch (error) {
+                showToast('解析失败: ' + error.message, 'error');
+            } finally {
+                optimizeBtn.disabled = false;
+                optimizeBtn.innerHTML = '<span>✨</span><span>AI 校验优化</span>';
+            }
+        }
+
+        async function callAI(text) {
+            const modelType = modelSelect.value;
+            const config = getModelConfig(modelType);
+            
+            console.log('使用模型:', modelType);
+            console.log('API配置:', config);
+            
+            if (!config.apiKey) {
+                throw new Error('请先在设置中配置API Key');
+            }
+
+            const prompt = getCustomPrompt().replace('{script}', text);
+
+            try {
+                const response = await fetch(config.baseUrl + '/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${config.apiKey}`
+                    },
+                    body: JSON.stringify({
+                        model: config.modelName,
+                        messages: [{ role: 'user', content: prompt }],
+                        stream: true,
+                        temperature: 0.3,
+                        max_tokens: 4000
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('API错误:', response.status, errorText);
+                    throw new Error('API请求失败: ' + response.status);
+                }
+
+                // 先以文本方式读取响应，处理可能的SSE格式
+                const textResponse = await response.text();
+                
+                let data;
+                let accumulatedContent = ''; // 用于累积流式响应的内容
+                
+                try {
+                    // 尝试直接解析JSON
+                    data = JSON.parse(textResponse);
+                } catch (e) {
+                    // 如果解析失败，检查是否包含多个JSON对象（流式响应）
+                    if (textResponse.includes('chat.completion.chunk')) {
+                        // 这是流式响应，可能是多个JSON对象拼接或SSE格式
+                        let jsonObjects;
+                        
+                        // 尝试按SSE格式解析（以data:开头的行）
+                        if (textResponse.startsWith('data:')) {
+                            const lines = textResponse.split('\n');
+                            jsonObjects = [];
+                            for (const line of lines) {
+                                if (line.startsWith('data:')) {
+                                    const jsonStr = line.replace(/^data:\s*/, '').trim();
+                                    if (jsonStr && jsonStr !== '[DONE]') {
+                                        jsonObjects.push(jsonStr);
+                                    }
+                                }
+                            }
+                        } else {
+                            // 多个JSON对象直接拼接，尝试按花括号分割
+                            jsonObjects = textResponse.match(/\{[\s\S]*?\}(?=\s*\{|\s*$)/g);
+                        }
+                        
+                        if (jsonObjects && jsonObjects.length > 0) {
+                            // 遍历所有JSON对象，累积delta.content
+                            for (const jsonStr of jsonObjects) {
+                                try {
+                                    const chunk = JSON.parse(jsonStr);
+                                    // 如果是流式响应的chunk，提取内容
+                                    if (chunk.choices && chunk.choices[0]?.delta?.content) {
+                                        accumulatedContent += chunk.choices[0].delta.content;
+                                    }
+                                } catch (e2) {
+                                    // 跳过无效的JSON
+                                }
+                            }
+                            
+                            // 使用最后一个有效的JSON对象作为基础
+                            const lastJson = jsonObjects[jsonObjects.length - 1];
+                            try {
+                                data = JSON.parse(lastJson);
+                                // 如果累积了内容，添加到data中
+                                if (accumulatedContent) {
+                                    data.choices = [{ message: { content: accumulatedContent } }];
+                                }
+                            } catch (e2) {
+                                throw new Error('无法解析响应: ' + e2.message);
+                            }
+                        } else {
+                            throw new Error('无法从流式响应中提取有效JSON');
+                        }
+                    } else {
+                        throw new Error('无法解析响应: ' + e.message);
+                    }
+                }
+
+                const content = data.choices?.[0]?.message?.content || '';
+                
+                if (!content) {
+                    throw new Error('AI返回内容为空');
+                }
+                
+                // 提取JSON
+                const jsonMatch = content.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                    return JSON.parse(jsonMatch[0]);
+                }
+                throw new Error('无法解析AI返回的内容');
+            } catch (error) {
+                console.error('API调用失败:', error);
+                throw error;
+            }
+        }
+
+        function getModelConfig(type) {
+            // 从主站设置中读取配置
+            let settings = null;
+            try {
+                const saved = localStorage.getItem('ai-chat-settings');
+                if (saved) settings = JSON.parse(saved);
+            } catch (e) {
+                console.warn('读取设置失败:', e);
+            }
+            
+            const globalApiKey = settings?.globalApiKey || '';
+            const globalBaseUrl = settings?.globalBaseUrl || 'https://api.openai.com/v1';
+            
+            // 查找匹配模型类型的配置
+            let modelConfig = {};
+            if (settings?.models && Array.isArray(settings.models)) {
+                // 优先查找匹配类型的模型配置
+                const matchedModel = settings.models.find(m => m.type === type);
+                if (matchedModel) {
+                    modelConfig = matchedModel;
+                } else {
+                    // 如果没有匹配类型，使用第一个非空配置作为备选
+                    const fallbackModel = settings.models.find(m => m.apiKey || m.baseUrl);
+                    if (fallbackModel) {
+                        modelConfig = fallbackModel;
+                    }
+                }
+            }
+            
+            // 默认基础URL
+            const defaultBaseUrls = {
+                doubao: 'https://ark.cn-beijing.volces.com/api/text/chat',
+                deepseek: 'https://api.deepseek.com/v1',
+                openai: 'https://api.openai.com/v1',
+                claude: 'https://api.anthropic.com/v1'
+            };
+            
+            const configs = {
+                doubao: {
+                    apiKey: modelConfig.apiKey || globalApiKey,
+                    baseUrl: (modelConfig.baseUrl || globalBaseUrl || defaultBaseUrls.doubao).replace(/\/+$/, ''),
+                    modelName: modelConfig.name || 'doubao-seed-2-0-mini-260428'
+                },
+                deepseek: {
+                    apiKey: modelConfig.apiKey || globalApiKey,
+                    baseUrl: (modelConfig.baseUrl || globalBaseUrl || defaultBaseUrls.deepseek).replace(/\/+$/, ''),
+                    modelName: modelConfig.name || 'deepseek-chat'
+                },
+                openai: {
+                    apiKey: modelConfig.apiKey || globalApiKey,
+                    baseUrl: (modelConfig.baseUrl || globalBaseUrl || defaultBaseUrls.openai).replace(/\/+$/, ''),
+                    modelName: modelConfig.name || 'gpt-4o-mini'
+                },
+                claude: {
+                    apiKey: modelConfig.apiKey || globalApiKey,
+                    baseUrl: (modelConfig.baseUrl || globalBaseUrl || defaultBaseUrls.claude).replace(/\/+$/, ''),
+                    modelName: modelConfig.name || 'claude-sonnet-4-20250514'
+                }
+            };
+            
+            return configs[type] || configs.deepseek;
+        }
+
+        function parseShots(result) {
+            shots = [];
+            if (result && result.shots && Array.isArray(result.shots)) {
+                shots = result.shots;
+            }
+            deletedShotIds.clear();
+        }
+
+        function getTypeClass(shot) {
+            let type = shot.type;
+            
+            if (!type || type === 'unchanged' || type === '无改动') {
+                const hasOriginal = shot.originalTitle || shot.originalDescription || shot.originalDialogue;
+                const hasChanged = (shot.originalTitle && shot.originalTitle !== shot.title) ||
+                                  (shot.originalDescription && shot.originalDescription !== shot.description) ||
+                                  (shot.originalDialogue && shot.originalDialogue !== shot.dialogue);
+                
+                if (hasOriginal && hasChanged) {
+                    type = '替换';
+                }
+            }
+            
+            const typeMap = {
+                '新增': 'add',
+                '删除': 'remove',
+                '替换': 'change',
+                '调整': 'adjust',
+                'unchanged': 'unchanged',
+                '无改动': 'unchanged'
+            };
+            return typeMap[type] || 'unchanged';
+        }
+
+        function getTypeLabel(type) {
+            const labelMap = {
+                'add': '新增',
+                'remove': '删除',
+                'change': '替换',
+                'adjust': '调整',
+                'unchanged': '无改动'
+            };
+            return labelMap[type] || '无改动';
+        }
+
+        function getTypeIcon(type) {
+            const iconMap = {
+                'add': '➕',
+                'remove': '➖',
+                'change': '🔄',
+                'adjust': '🔧',
+                'unchanged': '✓'
+            };
+            return iconMap[type] || '•';
+        }
+
+        let editingShotId = null;
+
+        function renderCards() {
+            const visibleShots = shots.filter(s => !deletedShotIds.has(s.id));
+            cardsCount.textContent = `共 ${visibleShots.length} 个分镜`;
+
+            if (visibleShots.length === 0) {
+                cardsGrid.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">📭</div>
+                        <div class="empty-text">没有可显示的分镜</div>
+                    </div>
+                `;
+                return;
+            }
+
+            cardsGrid.innerHTML = visibleShots.map(shot => {
+                const typeClass = getTypeClass(shot);
+                const typeLabel = getTypeLabel(typeClass);
+                const typeIcon = getTypeIcon(typeClass);
+                const isEditing = editingShotId === shot.id;
+
+                if (isEditing) {
+                    return `
+                        <div class="storyboard-card card-editing" data-id="${shot.id}">
+                            <div class="card-header">
+                                <div class="card-title">
+                                    <input type="number" class="edit-input" id="edit-shotnumber-${shot.id}" value="${escapeHtml(shot.shotNumber || '')}" style="width: 80px; margin-right: 12px;" />
+                                    <input type="text" class="edit-input" id="edit-title-${shot.id}" placeholder="镜头标题" value="${escapeHtml(shot.title || '')}" style="flex: 1;" />
+                                </div>
+                                <div class="card-actions">
+                                    <button class="card-action-btn" onclick="saveEdit('${shot.id}')" title="保存">✓</button>
+                                    <button class="card-action-btn" onclick="cancelEdit()" title="取消">✕</button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="card-field">
+                                    <div class="card-field-label">⏱️ 时长</div>
+                                    <input type="text" class="edit-input" id="edit-duration-${shot.id}" placeholder="如：3秒" value="${escapeHtml(shot.duration || '')}" />
+                                </div>
+                                <div class="card-field">
+                                    <div class="card-field-label">📷 角度</div>
+                                    <input type="text" class="edit-input" id="edit-angle-${shot.id}" placeholder="如：全景" value="${escapeHtml(shot.angle || '')}" />
+                                </div>
+                                <div class="card-field">
+                                    <div class="card-field-label">🖼️ 画面描述</div>
+                                    <textarea class="edit-textarea" id="edit-description-${shot.id}" placeholder="描述画面内容...">${escapeHtml(shot.description || '')}</textarea>
+                                </div>
+                                <div class="card-field">
+                                    <div class="card-field-label">💬 台词</div>
+                                    <textarea class="edit-textarea" id="edit-dialogue-${shot.id}" placeholder="角色台词...">${escapeHtml(shot.dialogue || '')}</textarea>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                return `
+                    <div class="storyboard-card ${typeClass}" data-id="${shot.id}" draggable="true" ondragstart="handleDragStart(event)" ondragend="handleDragEnd(event)" ondragover="handleDragOver(event)" ondrop="handleDrop(event)">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <span class="card-shot-number">镜号 ${shot.shotNumber}</span>
+                                <span class="card-duration">⏱️ ${shot.duration || '未知'}</span>
+                                ${shot.angle ? `<span class="card-duration">📷 ${shot.angle}</span>` : ''}
+                            </div>
+                            <div class="card-actions">
+                                <button class="card-action-btn" onclick="startEdit('${shot.id}')" title="编辑">✏️</button>
+                                <span class="card-type ${typeClass}">
+                                    <span>${typeIcon}</span>
+                                    <span>${typeLabel}</span>
+                                </span>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            ${shot.title || shot.originalTitle ? `
+                                <div class="card-field">
+                                    <div class="card-field-label">🎬 镜头</div>
+                                    ${shot.originalTitle && shot.originalTitle !== shot.title ? `
+                                        <div class="card-field-original">
+                                            <span class="field-label">原文:</span>
+                                            <span class="field-text">${escapeHtml(shot.originalTitle)}</span>
+                                        </div>
+                                        <div class="card-field-modified highlight-change">
+                                            <span class="field-label">修改:</span>
+                                            <span class="field-text">${escapeHtml(shot.title)}</span>
+                                        </div>
+                                    ` : `
+                                        <div class="card-field-content">${escapeHtml(shot.title || shot.originalTitle)}</div>
+                                    `}
+                                </div>
+                            ` : ''}
+                            ${shot.description || shot.originalDescription ? `
+                                <div class="card-field">
+                                    <div class="card-field-label">🖼️ 画面描述</div>
+                                    ${shot.originalDescription && shot.originalDescription !== shot.description ? `
+                                        <div class="card-field-original">
+                                            <span class="field-label">原文:</span>
+                                            <span class="field-text">${escapeHtml(shot.originalDescription)}</span>
+                                        </div>
+                                        <div class="card-field-modified highlight-change">
+                                            <span class="field-label">修改:</span>
+                                            <span class="field-text">${escapeHtml(shot.description)}</span>
+                                        </div>
+                                    ` : `
+                                        <div class="card-field-content">${escapeHtml(shot.description || shot.originalDescription)}</div>
+                                    `}
+                                </div>
+                            ` : ''}
+                            ${shot.dialogue || shot.originalDialogue ? `
+                                <div class="card-field">
+                                    <div class="card-field-label">💬 台词</div>
+                                    ${shot.originalDialogue && shot.originalDialogue !== shot.dialogue ? `
+                                        <div class="card-field-original">
+                                            <span class="field-label">原文:</span>
+                                            <span class="field-text">${escapeHtml(shot.originalDialogue)}</span>
+                                        </div>
+                                        <div class="card-field-modified highlight-change">
+                                            <span class="field-label">修改:</span>
+                                            <span class="field-text">${escapeHtml(shot.dialogue)}</span>
+                                        </div>
+                                    ` : `
+                                        <div class="card-field-content">${escapeHtml(shot.dialogue || shot.originalDialogue)}</div>
+                                    `}
+                                </div>
+                            ` : ''}
+                            ${shot.problem ? `
+                                <div class="card-analysis">
+                                    <div class="card-problem">${escapeHtml(shot.problem)}</div>
+                                    ${shot.effect ? `<div class="card-effect">${escapeHtml(shot.effect)}</div>` : ''}
+                                </div>
+                            ` : ''}
+                        </div>
+                        <div class="card-footer">
+                            <button class="card-btn card-btn-accept" onclick="acceptShot('${shot.id}')">
+                                ✓ 接受
+                            </button>
+                            <button class="card-btn card-btn-reject" onclick="rejectShot('${shot.id}')">
+                                ✕ 移除
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function startEdit(id) {
+            editingShotId = id;
+            renderCards();
+        }
+
+        function cancelEdit() {
+            editingShotId = null;
+            renderCards();
+        }
+
+        function saveEdit(id) {
+            const shot = shots.find(s => s.id === id);
+            if (!shot) return;
+
+            shot.shotNumber = document.getElementById(`edit-shotnumber-${id}`)?.value || shot.shotNumber;
+            shot.title = document.getElementById(`edit-title-${id}`)?.value || shot.title;
+            shot.duration = document.getElementById(`edit-duration-${id}`)?.value || shot.duration;
+            shot.angle = document.getElementById(`edit-angle-${id}`)?.value || shot.angle;
+            shot.description = document.getElementById(`edit-description-${id}`)?.value || shot.description;
+            shot.dialogue = document.getElementById(`edit-dialogue-${id}`)?.value || shot.dialogue;
+
+            editingShotId = null;
+            renderCards();
+            showToast('已保存', 'success');
+        }
+
+        let draggedShotId = null;
+
+        function handleDragStart(e) {
+            draggedShotId = e.target.getAttribute('data-id');
+            e.target.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', draggedShotId);
+        }
+
+        function handleDragEnd(e) {
+            e.target.classList.remove('dragging');
+            document.querySelectorAll('.storyboard-card').forEach(card => {
+                card.classList.remove('drag-over');
+            });
+            draggedShotId = null;
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            
+            const cards = document.querySelectorAll('.storyboard-card');
+            cards.forEach(card => {
+                card.classList.remove('drag-over');
+            });
+            
+            const targetCard = e.target.closest('.storyboard-card');
+            if (targetCard && targetCard.getAttribute('data-id') !== draggedShotId) {
+                targetCard.classList.add('drag-over');
+            }
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            
+            const targetCard = e.target.closest('.storyboard-card');
+            if (!targetCard) return;
+
+            const targetId = targetCard.getAttribute('data-id');
+            if (targetId === draggedShotId) return;
+
+            const visibleShots = shots.filter(s => !deletedShotIds.has(s.id));
+            const draggedIndex = visibleShots.findIndex(s => s.id === draggedShotId);
+            const targetIndex = visibleShots.findIndex(s => s.id === targetId);
+
+            if (draggedIndex === -1 || targetIndex === -1) return;
+
+            const draggedShot = visibleShots[draggedIndex];
+            visibleShots.splice(draggedIndex, 1);
+            visibleShots.splice(targetIndex, 0, draggedShot);
+
+            const allShots = shots.filter(s => deletedShotIds.has(s.id));
+            shots = [...allShots, ...visibleShots].map((s, i) => ({
+                ...s,
+                shotNumber: String(i + 1)
+            }));
+
+            renderCards();
+            showToast('顺序已调整', 'success');
+        }
+
+        function acceptShot(id) {
+            const shot = shots.find(s => s.id === id);
+            if (shot) {
+                shot.title = shot.title || shot.originalTitle || '';
+                shot.description = shot.description || shot.originalDescription || '';
+                shot.dialogue = shot.dialogue || shot.originalDialogue || '';
+                shot.type = 'unchanged';
+                shot.problem = '';
+                shot.effect = '';
+                shot.originalTitle = '';
+                shot.originalDescription = '';
+                shot.originalDialogue = '';
+            }
+            renderCards();
+            showToast('已接受改动', 'success');
+        }
+
+        function rejectShot(id) {
+            const shot = shots.find(s => s.id === id);
+            if (shot) {
+                const typeClass = getTypeClass(shot);
+                if (typeClass === 'add') {
+                    deletedShotIds.add(id);
+                    renderCards();
+                    showToast('已移除该分镜', 'success');
+                } else {
+                    shot.title = shot.originalTitle || shot.title || '';
+                    shot.description = shot.originalDescription || shot.description || '';
+                    shot.dialogue = shot.originalDialogue || shot.dialogue || '';
+                    shot.type = 'unchanged';
+                    shot.problem = '';
+                    shot.effect = '';
+                    shot.originalTitle = '';
+                    shot.originalDescription = '';
+                    shot.originalDialogue = '';
+                    renderCards();
+                    showToast('已恢复原文', 'success');
+                }
+            }
+        }
+
+        function acceptAllShots() {
+            shots.forEach(shot => {
+                shot.title = shot.title || shot.originalTitle || '';
+                shot.description = shot.description || shot.originalDescription || '';
+                shot.dialogue = shot.dialogue || shot.originalDialogue || '';
+                shot.type = 'unchanged';
+                shot.problem = '';
+                shot.effect = '';
+                shot.originalTitle = '';
+                shot.originalDescription = '';
+                shot.originalDialogue = '';
+            });
+            renderCards();
+            showToast('已同意全部改动', 'success');
+            showFinalView();
+        }
+
+        function changeLayoutSize() {
+            const sizeSelect = document.getElementById('sizeSelect');
+            const cardsGrid = document.getElementById('cardsGrid');
+            const currentSize = sizeSelect.value;
+            
+            cardsGrid.classList.remove('small', 'small-medium', 'medium', 'medium-large', 'large');
+            cardsGrid.classList.add(currentSize);
+        }
+
+        function showFinalView() {
+            const cardsSection = document.getElementById('cardsSection');
+            const finalSection = document.getElementById('finalSection');
+            const finalContent = document.getElementById('finalContent');
+            const finalCount = document.getElementById('finalCount');
+
+            const visibleShots = shots.filter(s => !deletedShotIds.has(s.id));
+            finalCount.textContent = `共 ${visibleShots.length} 个分镜`;
+
+            finalContent.innerHTML = visibleShots.map(shot => `
+                <div class="final-shot">
+                    <div class="final-shot-number">镜号 ${shot.shotNumber}</div>
+                    ${shot.title ? `<div class="final-shot-title">${escapeHtml(shot.title)}</div>` : ''}
+                    <div class="final-shot-meta">
+                        <span>⏱️ ${shot.duration || '未知'}</span>
+                        ${shot.angle ? `<span>📷 ${shot.angle}</span>` : ''}
+                    </div>
+                    ${shot.description ? `<div class="final-shot-description">${escapeHtml(shot.description)}</div>` : ''}
+                    ${shot.dialogue ? `<div class="final-shot-dialogue">${escapeHtml(shot.dialogue)}</div>` : ''}
+                </div>
+            `).join('');
+
+            cardsSection.classList.remove('show');
+            finalSection.style.display = 'block';
+            showToast('已切换到成品视图', 'success');
+        }
+
+        function backToCards() {
+            const cardsSection = document.getElementById('cardsSection');
+            const finalSection = document.getElementById('finalSection');
+
+            finalSection.style.display = 'none';
+            cardsSection.classList.add('show');
+        }
+
+        function addNewCard() {
+            const newId = 'shot_new_' + Date.now();
+            const newShot = {
+                id: newId,
+                shotNumber: String(shots.length + 1),
+                title: '新镜头',
+                duration: '3秒',
+                description: '画面描述...',
+                dialogue: '',
+                angle: '中景',
+                type: '新增',
+                problem: '',
+                effect: ''
+            };
+            shots.push(newShot);
+            renderCards();
+            showToast('已新增分镜', 'success');
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function toggleExportMenu() {
+            const menu = document.getElementById('exportMenu');
+            document.getElementById('finalExportMenu').classList.remove('show');
+            menu.classList.toggle('show');
+        }
+
+        function toggleFinalExportMenu() {
+            const menu = document.getElementById('finalExportMenu');
+            document.getElementById('exportMenu').classList.remove('show');
+            menu.classList.toggle('show');
+        }
+
+        document.addEventListener('click', function(e) {
+            const dropdowns = document.querySelectorAll('.dropdown');
+            let clickedInside = false;
+            dropdowns.forEach(dropdown => {
+                if (dropdown.contains(e.target)) {
+                    clickedInside = true;
+                }
+            });
+            if (!clickedInside) {
+                document.getElementById('exportMenu').classList.remove('show');
+                document.getElementById('finalExportMenu').classList.remove('show');
+            }
+        });
+
+        function exportToClipboard() {
+            const visibleShots = shots.filter(s => !deletedShotIds.has(s.id));
+            let text = '';
+            visibleShots.forEach(shot => {
+                text += `镜号${shot.shotNumber}: ${shot.title || ''}\n`;
+                text += `时长: ${shot.duration || ''}\n`;
+                if (shot.angle) text += `角度: ${shot.angle}\n`;
+                if (shot.description) text += `画面: ${shot.description}\n`;
+                if (shot.dialogue) text += `台词: ${shot.dialogue}\n`;
+                text += '\n';
+            });
+
+            navigator.clipboard.writeText(text.trim()).then(() => {
+                showToast('已复制到剪贴板', 'success');
+            });
+            document.getElementById('exportMenu').classList.remove('show');
+            document.getElementById('finalExportMenu').classList.remove('show');
+        }
+
+        function exportToTxt() {
+            const visibleShots = shots.filter(s => !deletedShotIds.has(s.id));
+            let text = '分镜脚本\n\n';
+            visibleShots.forEach(shot => {
+                text += `镜号${shot.shotNumber}: ${shot.title || ''}\n`;
+                text += `时长: ${shot.duration || ''}\n`;
+                if (shot.angle) text += `角度: ${shot.angle}\n`;
+                if (shot.description) text += `画面: ${shot.description}\n`;
+                if (shot.dialogue) text += `台词: ${shot.dialogue}\n`;
+                text += '\n';
+            });
+
+            downloadFile(text, '分镜脚本.txt', 'text/plain');
+            document.getElementById('exportMenu').classList.remove('show');
+            document.getElementById('finalExportMenu').classList.remove('show');
+        }
+
+        function exportToDocx() {
+            const visibleShots = shots.filter(s => !deletedShotIds.has(s.id));
+            let content = '';
+            
+            visibleShots.forEach(shot => {
+                content += `<h2>镜号${shot.shotNumber}: ${shot.title || ''}</h2>`;
+                content += `<p><strong>时长:</strong> ${shot.duration || '未知'}</p>`;
+                if (shot.angle) content += `<p><strong>角度:</strong> ${shot.angle}</p>`;
+                if (shot.description) content += `<p><strong>画面:</strong> ${shot.description}</p>`;
+                if (shot.dialogue) content += `<p><strong>台词:</strong> ${shot.dialogue}</p>`;
+                content += '<p>&nbsp;</p>';
+            });
+
+            const docxContent = `
+                <!DOCTYPE html>
+                <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word'>
+                <head>
+                    <meta charset="UTF-8">
+                    <style>
+                        h2 { color: #f97316; margin-top: 24px; margin-bottom: 12px; }
+                        p { margin: 8px 0; line-height: 1.8; }
+                        strong { color: #1e293b; }
+                    </style>
+                </head>
+                <body>
+                    <h1 style="color: #f97316; text-align: center; margin-bottom: 32px;">分镜脚本</h1>
+                    ${content}
+                </body>
+                </html>
+            `;
+
+            downloadFile(docxContent, '分镜脚本.docx', 'application/vnd.ms-word');
+            document.getElementById('exportMenu').classList.remove('show');
+            document.getElementById('finalExportMenu').classList.remove('show');
+            showToast('DOCX文件已下载', 'success');
+        }
+
+        function exportToJson() {
+            const visibleShots = shots.filter(s => !deletedShotIds.has(s.id));
+            const json = JSON.stringify({ shots: visibleShots }, null, 2);
+            
+            downloadFile(json, '分镜脚本.json', 'application/json');
+            document.getElementById('exportMenu').classList.remove('show');
+            document.getElementById('finalExportMenu').classList.remove('show');
+            showToast('JSON文件已下载', 'success');
+        }
+
+        function downloadFile(content, filename, mimeType) {
+            const blob = new Blob([content], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function goBack() {
+            window.location.href = 'script-review.html';
+        }
+
+        function saveModelSelection() {
+            const selectedModel = modelSelect.value;
+            localStorage.setItem('storyboard-model', selectedModel);
+        }
+
+        function loadModelSelection() {
+            const savedModel = localStorage.getItem('storyboard-model');
+            if (savedModel) {
+                modelSelect.value = savedModel;
+            }
+        }
+
+        // 加载保存的数据
+        function loadFromStorage() {
+            try {
+                const saved = localStorage.getItem('storyboard-shots');
+                if (saved) {
+                    const data = JSON.parse(saved);
+                    if (data.shots && data.shots.length > 0) {
+                        shots = data.shots;
+                        if (data.deletedIds) {
+                            deletedShotIds = new Set(data.deletedIds);
+                        }
+                        renderCards();
+                        document.getElementById('restoreBtn').style.display = 'inline-flex';
+                    }
+                }
+                
+                const scriptFromReview = localStorage.getItem('storyboard-from-script');
+                if (scriptFromReview) {
+                    localStorage.removeItem('storyboard-from-script');
+                    parseScriptToShots(scriptFromReview);
+                }
+            } catch (e) {
+                console.error('加载数据失败:', e);
+            }
+        }
+
+        function restoreShots() {
+            if (shots.length > 0) {
+                document.getElementById('inputSection').style.display = 'none';
+                document.getElementById('cardsSection').classList.add('show');
+                renderCards();
+                showToast('已恢复分镜卡片', 'success');
+            }
+        }
+
+        function parseScriptToShots(script) {
+            shots = [];
+            deletedShotIds.clear();
+            
+            const lines = script.split('\n');
+            let currentShot = null;
+            let shotIndex = 1;
+            
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line) continue;
+                
+                if (line.startsWith('镜号')) {
+                    if (currentShot) {
+                        shots.push(currentShot);
+                    }
+                    const match = line.match(/镜号(\d+)\s*[：:]\s*(.+)?/);
+                    currentShot = {
+                        id: 'shot_' + Date.now() + '_' + i,
+                        shotNumber: match ? match[1] : String(shotIndex++),
+                        title: match && match[2] ? match[2].trim() : '',
+                        duration: '',
+                        description: '',
+                        dialogue: '',
+                        angle: '',
+                        type: 'unchanged'
+                    };
+                } else if (line.startsWith('时长')) {
+                    if (currentShot) {
+                        const match = line.match(/时长\s*[：:]\s*(.+)/);
+                        currentShot.duration = match ? match[1].trim() : '';
+                    }
+                } else if (line.startsWith('角度') || line.startsWith('景别')) {
+                    if (currentShot) {
+                        const match = line.match(/(角度|景别)\s*[：:]\s*(.+)/);
+                        currentShot.angle = match ? match[2].trim() : '';
+                    }
+                } else if (line.startsWith('画面') || line.startsWith('描述')) {
+                    if (currentShot) {
+                        const match = line.match(/(画面|描述)\s*[：:]\s*(.+)/);
+                        currentShot.description = match ? match[2].trim() : '';
+                    }
+                } else if (line.startsWith('台词')) {
+                    if (currentShot) {
+                        const match = line.match(/台词\s*[：:]\s*(.+)/);
+                        currentShot.dialogue = match ? match[1].trim() : '';
+                    }
+                } else if (currentShot) {
+                    if (currentShot.description) {
+                        currentShot.description += '\n' + line;
+                    } else {
+                        currentShot.description = line;
+                    }
+                }
+            }
+            
+            if (currentShot) {
+                shots.push(currentShot);
+            }
+            
+            if (shots.length === 0) {
+                showToast('未识别到分镜内容', 'warning');
+                return;
+            }
+            
+            document.getElementById('inputSection').style.display = 'none';
+            document.getElementById('cardsSection').classList.add('show');
+            renderCards();
+            saveToStorage();
+            showToast('剧本已生成分镜', 'success');
+        }
+
+        function saveToStorage() {
+            const data = {
+                shots: shots,
+                deletedIds: Array.from(deletedShotIds)
+            };
+            localStorage.setItem('storyboard-shots', JSON.stringify(data));
+        }
+
+        // 监听变化自动保存
+        const originalRenderCards = renderCards;
+        renderCards = function() {
+            originalRenderCards();
+            saveToStorage();
+        };
+
+        loadFromStorage();
+        loadModelSelection();
+    </script>
+</body>
+</html>

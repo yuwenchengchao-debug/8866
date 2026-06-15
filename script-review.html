@@ -1,0 +1,2292 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>剧本校验对比 - AIGC助手</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-primary: #fafafa;
+            --bg-secondary: #ffffff;
+            --bg-card: #ffffff;
+            --bg-input: #f5f5f5;
+            --border-color: #e5e5e5;
+            --border-hover: #d4d4d4;
+            --text-primary: #171717;
+            --text-secondary: #525252;
+            --text-muted: #a3a3a3;
+            --accent-blue: #6366f1;
+            --accent-green: #10b981;
+            --accent-red: #ef4444;
+            --accent-amber: #f59e0b;
+            --accent-yellow: #fbbf24;
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --radius-xl: 24px;
+            --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+            --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.08);
+            --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.1);
+            --transition: 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+        }
+        html, body {
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+        }
+        body {
+            overflow: hidden;
+            overflow-y: auto;
+        }
+        
+        /* 顶部导航 */
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 20px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            flex-shrink: 0;
+            gap: 20px;
+        }
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 1;
+        }
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: auto;
+        }
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .header-logo {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            color: white;
+            box-shadow: var(--shadow-md);
+        }
+        .header-title {
+            font-size: 15px;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+        }
+        .header-subtitle {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+        .back-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all var(--transition);
+            box-shadow: var(--shadow-sm);
+        }
+        .back-btn:hover {
+            border-color: var(--accent-blue);
+            color: var(--accent-blue);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+        
+        /* 主内容区 */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 16px 20px;
+            gap: 12px;
+            min-height: 0;
+            overflow: hidden;
+        }
+        
+        /* 选择器 */
+        .model-select {
+            padding: 10px 16px;
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            color: var(--text-primary);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all var(--transition);
+            font-family: inherit;
+            outline: none;
+        }
+        .model-select:hover {
+            border-color: var(--accent-blue);
+        }
+        .model-select:focus {
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+        .model-select-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-toggle.active {
+            background: linear-gradient(135deg, #f97316 0%, #fb923c 100%) !important;
+            color: white !important;
+            border-color: transparent !important;
+        }
+        
+        .model-toggle {
+            display: flex;
+            gap: 4px;
+            background: var(--bg-input);
+            padding: 4px;
+            border-radius: var(--radius-md);
+        }
+        .model-toggle-btn {
+            padding: 6px 12px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 12px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all var(--transition);
+        }
+        .model-toggle-btn:hover {
+            background: rgba(0,0,0,0.05);
+        }
+        .model-toggle-btn.active {
+            background: var(--accent-blue);
+            color: white;
+        }
+        
+
+        
+        /* 按钮 */
+        .btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: var(--radius-md);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all var(--transition);
+            font-family: inherit;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+        }
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.35);
+        }
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .btn-success {
+            background: var(--accent-green);
+            color: white;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+        }
+        .btn-success:hover {
+            background: #059669;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.35);
+        }
+        .btn-secondary {
+            background: var(--bg-card);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+        }
+        .btn-secondary:hover {
+            border-color: var(--accent-blue);
+            color: var(--accent-blue);
+        }
+        .btn-icon {
+            padding: 10px 14px;
+            background: var(--bg-card);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+        }
+        .btn-icon:hover {
+            border-color: var(--accent-blue);
+            color: var(--accent-blue);
+            background: rgba(99, 102, 241, 0.05);
+        }
+        
+        /* 图例 */
+        .legend-inline {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding-right: 16px;
+            border-right: 1px solid var(--border-color);
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+            flex-shrink: 0;
+        }
+        .legend-text {
+            font-size: 11px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+        
+        /* 模态框 */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all var(--transition);
+        }
+        .modal-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal {
+            background: var(--bg-card);
+            border-radius: var(--radius-xl);
+            width: 90%;
+            max-width: 640px;
+            max-height: 85vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: var(--shadow-xl);
+            transform: translateY(20px) scale(0.95);
+            transition: all var(--transition);
+        }
+        .modal-overlay.show .modal {
+            transform: translateY(0) scale(1);
+        }
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        /* 下拉菜单 */
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+        .dropdown-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .dropdown-arrow {
+            font-size: 10px;
+            opacity: 0.7;
+            transition: transform var(--transition);
+        }
+        .dropdown-toggle.active .dropdown-arrow {
+            transform: rotate(180deg);
+        }
+        .dropdown-menu {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            min-width: 160px;
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-lg);
+            padding: 4px;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-8px);
+            transition: all var(--transition);
+            z-index: 1000;
+        }
+        .dropdown-menu.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+        .dropdown-item {
+            display: block;
+            width: 100%;
+            padding: 10px 14px;
+            background: none;
+            border: none;
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            font-size: 13px;
+            text-align: left;
+            cursor: pointer;
+            transition: all var(--transition);
+        }
+        .dropdown-item:hover {
+            background: var(--bg-hover);
+        }
+        .modal-title {
+            font-size: 16px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .modal-close {
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: var(--bg-input);
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            color: var(--text-secondary);
+            transition: all var(--transition);
+        }
+        .modal-close:hover {
+            background: var(--accent-red);
+            color: white;
+        }
+        .modal-body {
+            flex: 1;
+            padding: 20px 24px;
+            overflow-y: auto;
+        }
+        .modal-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .modal-hint {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 8px;
+            line-height: 1.5;
+        }
+        .modal-hint code {
+            background: var(--bg-input);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 10px;
+        }
+        .prompt-textarea {
+            width: 100%;
+            height: 200px;
+            padding: 14px;
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            color: var(--text-primary);
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            resize: vertical;
+            transition: all var(--transition);
+        }
+        .prompt-textarea:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+        .modal-footer {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 10px;
+            padding: 16px 24px;
+            border-top: 1px solid var(--border-color);
+        }
+        
+        /* 状态文字 */
+        .status-text {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+        .status-text.loading {
+            color: var(--accent-amber);
+        }
+        .status-text.success {
+            color: var(--accent-green);
+        }
+        .status-text.error {
+            color: var(--accent-red);
+        }
+        
+        /* 对比容器 */
+        .compare-container {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 0.75fr 1fr;
+            gap: 12px;
+            min-height: 0;
+            max-height: calc(100vh - 120px);
+        }
+        
+        /* 面板 */
+        .compare-panel {
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-secondary);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+            min-height: 0;
+        }
+        
+        /* 提示信息面板 */
+        .hint-panel {
+            display: flex;
+            flex-direction: column;
+            background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+            min-height: 0;
+            height: 100%;
+            box-shadow: var(--shadow-sm);
+        }
+        .hint-panel-header {
+            padding: 12px 16px;
+            background: rgba(99, 102, 241, 0.08);
+            border-bottom: 1px solid var(--border-color);
+            flex-shrink: 0;
+        }
+        .hint-panel-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .hint-panel-content {
+            flex: 1;
+            padding: 12px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            min-height: 0;
+        }
+        .hint-card {
+            background: var(--bg-card);
+            border-radius: var(--radius-md);
+            padding: 12px;
+            margin-bottom: 10px;
+            border-left: 4px solid var(--accent-blue);
+            box-shadow: var(--shadow-sm);
+        }
+        .hint-card:last-child {
+            margin-bottom: 0;
+        }
+        .hint-card.add {
+            border-left-color: var(--accent-green);
+        }
+        .hint-card.remove {
+            border-left-color: var(--accent-red);
+        }
+        .hint-card.change {
+            border-left-color: var(--accent-amber);
+        }
+        .hint-card.adjust {
+            border-left-color: var(--accent-blue);
+        }
+        .hint-type {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .hint-problem {
+            font-size: 12px;
+            color: var(--text-primary);
+            line-height: 1.5;
+            margin-bottom: 8px;
+            padding: 8px;
+            background: rgba(0, 0, 0, 0.03);
+            border-radius: 4px;
+        }
+        .hint-effect {
+            font-size: 11px;
+            color: var(--text-secondary);
+            line-height: 1.4;
+            padding: 6px 8px;
+            background: rgba(99, 102, 241, 0.06);
+            border-radius: 4px;
+        }
+        .hint-original {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 6px;
+            padding: 6px;
+            background: rgba(239, 68, 68, 0.06);
+            border-radius: 4px;
+            font-style: italic;
+        }
+        .hint-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(0, 0, 0, 0.06);
+        }
+        .hint-btn {
+            flex: 1;
+            padding: 6px 10px;
+            border: none;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .hint-btn-accept {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--accent-green);
+        }
+        .hint-btn-accept:hover {
+            background: rgba(16, 185, 129, 0.2);
+            transform: translateY(-1px);
+        }
+        .hint-btn-reject {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--accent-red);
+        }
+        .hint-btn-reject:hover {
+            background: rgba(239, 68, 68, 0.2);
+            transform: translateY(-1px);
+        }
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            background: var(--bg-primary);
+            border-bottom: 1px solid var(--border-color);
+            flex-shrink: 0;
+        }
+        .panel-title {
+            font-size: 13px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-primary);
+        }
+        .panel-icon {
+            font-size: 16px;
+        }
+        .panel-actions {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .panel-btn {
+            padding: 5px 12px;
+            background: transparent;
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            color: var(--text-secondary);
+            font-size: 11px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all var(--transition);
+            font-family: inherit;
+        }
+        .panel-btn:hover {
+            border-color: var(--accent-blue);
+            color: var(--accent-blue);
+        }
+        .panel-content {
+            flex: 1;
+            padding: 12px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+        
+        /* 文本框 */
+        .textarea-wrapper {
+            position: relative;
+            flex: 1;
+            overflow: hidden;
+            border-radius: var(--radius-md);
+            display: flex;
+            flex-direction: column;
+        }
+        .script-textarea {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            height: 100%;
+            min-height: 300px;
+            padding: 14px;
+            background: transparent;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 13px;
+            line-height: 1.7;
+            resize: none;
+            transition: all var(--transition);
+            outline: none;
+            box-sizing: border-box;
+        }
+        .textarea-highlight {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            padding: 14px;
+            font-family: inherit;
+            font-size: 13px;
+            line-height: 1.7;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            pointer-events: none;
+            overflow: auto;
+            color: transparent;
+        }
+        .highlight-add {
+            text-decoration: underline;
+            text-decoration-color: var(--accent-green);
+            text-decoration-thickness: 3px;
+            background: rgba(16, 185, 129, 0.1);
+        }
+        .highlight-remove {
+            text-decoration: line-through underline;
+            text-decoration-color: var(--accent-red);
+            text-decoration-thickness: 3px;
+            background: rgba(239, 68, 68, 0.1);
+        }
+        .highlight-change {
+            text-decoration: underline;
+            text-decoration-color: var(--accent-amber);
+            text-decoration-thickness: 3px;
+            background: rgba(251, 191, 36, 0.1);
+        }
+        .highlight-adjust {
+            text-decoration: underline;
+            text-decoration-color: var(--accent-blue);
+            text-decoration-thickness: 3px;
+            background: rgba(99, 102, 241, 0.1);
+        }
+        .script-textarea:focus {
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.08);
+        }
+        .script-textarea::placeholder {
+            color: var(--text-muted);
+        }
+        
+        /* 显示区 */
+        .script-display {
+            flex: 1;
+            width: 100%;
+            padding: 14px;
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 13px;
+            line-height: 1.7;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            overflow-y: auto;
+        }
+        
+        /* 差异样式 */
+        .diff-add {
+            background: rgba(16, 185, 129, 0.15);
+            border-radius: 4px;
+            padding: 1px 4px;
+            color: #059669;
+            font-weight: 500;
+        }
+        .diff-remove {
+            background: rgba(239, 68, 68, 0.12);
+            text-decoration: line-through;
+            color: #dc2626;
+            border-radius: 4px;
+            padding: 1px 4px;
+        }
+        .diff-change {
+            background: rgba(251, 191, 36, 0.2);
+            border-radius: 4px;
+            padding: 1px 4px;
+            color: #b45309;
+            font-weight: 500;
+        }
+        .diff-adjust {
+            background: rgba(59, 130, 246, 0.15);
+            border-radius: 4px;
+            padding: 1px 4px;
+            color: #1d4ed8;
+            font-weight: 500;
+            border-left: 3px solid #3b82f6;
+        }
+        .diff-block {
+            position: relative;
+            cursor: pointer;
+            transition: all var(--transition);
+        }
+        .diff-block:hover {
+            filter: brightness(0.95);
+        }
+        .diff-actions {
+            position: fixed;
+            display: flex;
+            gap: 4px;
+            opacity: 0;
+            transform: translate(4px, -4px);
+            transition: all var(--transition);
+            z-index: 9998;
+            pointer-events: none;
+        }
+        .diff-block:hover .diff-actions {
+            opacity: 1;
+            transform: translate(0, 0);
+            pointer-events: auto;
+        }
+        .diff-btn {
+            width: 24px;
+            height: 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all var(--transition);
+            box-shadow: var(--shadow-md);
+        }
+        .diff-btn-accept {
+            background: var(--accent-green);
+            color: white;
+        }
+        .diff-btn-accept:hover {
+            background: #059669;
+            transform: scale(1.1);
+        }
+        .diff-btn-reject {
+            background: var(--accent-red);
+            color: white;
+        }
+        .diff-btn-reject:hover {
+            background: #dc2626;
+            transform: scale(1.1);
+        }
+        
+        /* 悬浮卡片 */
+        .tooltip {
+            position: fixed;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 14px;
+            min-width: 280px;
+            max-width: 360px;
+            box-shadow: var(--shadow-xl);
+            z-index: 9999;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateX(-10px) translateY(8px);
+            transition: all var(--transition);
+            pointer-events: none;
+        }
+        .diff-block:hover .tooltip {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(0) translateY(0);
+        }
+        .tooltip-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .tooltip-problem {
+            margin-bottom: 10px;
+        }
+        .tooltip-label {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .tooltip-content {
+            font-size: 12px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+        .tooltip-effect {
+            background: rgba(99, 102, 241, 0.06);
+            padding: 10px 12px;
+            border-radius: var(--radius-sm);
+        }
+        
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            padding: 12px 24px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            color: var(--text-primary);
+            font-size: 13px;
+            font-weight: 500;
+            opacity: 0;
+            transition: all var(--transition);
+            z-index: 9999;
+            box-shadow: var(--shadow-lg);
+        }
+        .toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+        .toast.success {
+            border-color: var(--accent-green);
+            background: rgba(16, 185, 129, 0.08);
+        }
+        .toast.error {
+            border-color: var(--accent-red);
+            background: rgba(239, 68, 68, 0.08);
+        }
+        
+        /* 加载动画 */
+        .loading-spinner {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* 滚动条 */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--border-hover); }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-left">
+            <div class="header-logo">📝</div>
+            <div>
+                <div class="header-title">剧本校验对比</div>
+                <div class="header-subtitle">AI 辅助优化工具</div>
+            </div>
+            <!-- 左侧操作区 -->
+            <div class="header-actions">
+                <div class="model-select-group">
+                    <select class="model-select" id="modelSelect">
+                        <option value="doubao">🌱 豆包</option>
+                        <option value="deepseek">🔮 DeepSeek</option>
+                        <option value="openai">🤖 GPT</option>
+                        <option value="claude">🧠 Claude</option>
+                    </select>
+                </div>
+                <button class="btn btn-icon" onclick="openPromptModal()" title="提示词设置">
+                    ⚙️
+                </button>
+                <button class="btn btn-primary" id="optimizeBtn" onclick="startOptimize()">
+                    <span>✨</span>
+                    <span>AI 校验优化</span>
+                </button>
+                <button class="btn" id="acceptAllBtn" style="background: linear-gradient(135deg, #10b981 0%, #34d399 100%); color: white;" onclick="acceptAllChanges()">
+                    <span>✅</span>
+                    <span>一键同意</span>
+                </button>
+                <button class="btn" id="generateStoryboardBtn" style="background: linear-gradient(135deg, #f97316 0%, #fb923c 100%); color: white;" onclick="generateStoryboard()">
+                    <span>🎬</span>
+                    <span>生成分镜</span>
+                </button>
+                <button class="btn" style="background: linear-gradient(135deg, #10b981 0%, #34d399 100%); color: white;" onclick="goToStoryboard()">
+                    <span>📽️</span>
+                    <span>分镜脚本</span>
+                </button>
+            </div>
+        </div>
+        <div class="header-right">
+            <!-- 图例 -->
+            <div class="legend-inline">
+                <div class="legend-item">
+                    <span class="legend-color diff-add"></span>
+                    <span class="legend-text">新增</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color diff-remove"></span>
+                    <span class="legend-text">删除</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color diff-change"></span>
+                    <span class="legend-text">替换</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color diff-adjust"></span>
+                    <span class="legend-text">调整</span>
+                </div>
+            </div>
+            <span class="status-text" id="statusText">准备就绪</span>
+            <div class="dropdown">
+                <button class="btn btn-success dropdown-toggle" id="exportBtn" onclick="toggleExportMenu()">
+                    <span>📋</span>
+                    <span>导出剧本</span>
+                    <span class="dropdown-arrow">▼</span>
+                </button>
+                <div class="dropdown-menu" id="exportMenu">
+                    <button class="dropdown-item" onclick="exportToClipboard()">📋 复制到剪贴板</button>
+                    <button class="dropdown-item" onclick="exportToTxt()">📄 导出为TXT</button>
+                    <button class="dropdown-item" onclick="exportToDocx()">📝 导出为DOCX</button>
+                </div>
+            </div>
+            <button class="back-btn" onclick="goBack()">
+                <span>←</span>
+                <span>返回</span>
+            </button>
+        </div>
+    </header>
+
+    <div class="main-content">
+
+        <div class="compare-container">
+            <div class="compare-panel">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <span class="panel-icon">📄</span>
+                        <span>原始剧本</span>
+                    </div>
+                    <div class="panel-actions">
+                        <button class="panel-btn" onclick="clearOriginal()">清空</button>
+                        <button class="panel-btn" onclick="loadSample()">示例</button>
+                        <button class="panel-btn" onclick="formatScript()">格式化</button>
+                    </div>
+                </div>
+                <div class="panel-content">
+                    <div class="textarea-wrapper">
+                        <textarea class="script-textarea" id="originalTextarea" placeholder="输入原始剧本内容..."></textarea>
+                        <div class="textarea-highlight" id="originalHighlight"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 提示信息面板 -->
+            <div class="hint-panel">
+                <div class="hint-panel-header">
+                    <div class="hint-panel-title">
+                        <span>💡</span>
+                        <span>优化分析</span>
+                    </div>
+                </div>
+                <div class="hint-panel-content" id="hintPanelContent">
+                    <div style="text-align: center; color: var(--text-muted); padding: 20px;">
+                        <div style="font-size: 32px; margin-bottom: 8px;">🔍</div>
+                        <div style="font-size: 12px;">点击"AI校验优化"查看分析结果</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="compare-panel">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <span class="panel-icon">✨</span>
+                        <span>AI 优化版</span>
+                    </div>
+                    <div class="panel-actions">
+                        <button class="panel-btn" onclick="refreshDiff()">刷新</button>
+                    </div>
+                </div>
+                <div class="panel-content">
+                    <div class="script-display" id="optimizedDisplay"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <!-- 提示词设置模态框 -->
+    <div class="modal-overlay" id="promptModal">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <span>📝</span>
+                    <span>提示词设置</span>
+                </div>
+                <button class="modal-close" onclick="closePromptModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-label">自定义校验提示词</div>
+                <textarea class="prompt-textarea" id="promptTextarea" placeholder="输入你的提示词..."></textarea>
+                <div class="modal-hint">
+                    <strong>提示：</strong>使用 <code>{script}</code> 占位剧本内容。<br>
+                    示例：你是剧本审核专家，请优化以下内容：{script}
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="resetPrompt()">恢复默认</button>
+                <button class="btn btn-primary" onclick="savePrompt()">保存设置</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const originalTextarea = document.getElementById('originalTextarea');
+        const originalHighlight = document.getElementById('originalHighlight');
+        const optimizedDisplay = document.getElementById('optimizedDisplay');
+        const optimizeBtn = document.getElementById('optimizeBtn');
+        const statusText = document.getElementById('statusText');
+        const modelSelect = document.getElementById('modelSelect');
+        const toast = document.getElementById('toast');
+
+        let originalText = '';
+        let optimizedText = '';
+        let diffBlocks = [];
+
+        // localStorage 键名
+        const STORAGE_KEYS = {
+            model: 'script-review-model',
+            original: 'script-review-original',
+            optimized: 'script-review-optimized',
+            diffBlocks: 'script-review-diffblocks'
+        };
+
+        // 加载保存的数据
+        function loadSavedData() {
+            const savedModel = localStorage.getItem(STORAGE_KEYS.model);
+            const savedOriginal = localStorage.getItem(STORAGE_KEYS.original);
+            const savedOptimized = localStorage.getItem(STORAGE_KEYS.optimized);
+            const savedDiffBlocks = localStorage.getItem(STORAGE_KEYS.diffBlocks);
+
+            if (savedModel) {
+                modelSelect.value = savedModel;
+            }
+            if (savedOriginal) {
+                originalTextarea.value = savedOriginal;
+                originalText = savedOriginal;
+            }
+            if (savedOptimized) {
+                optimizedText = savedOptimized;
+            }
+            if (savedDiffBlocks) {
+                try {
+                    diffBlocks = JSON.parse(savedDiffBlocks);
+                } catch (e) {
+                    diffBlocks = [];
+                }
+            }
+
+            // 如果有保存的优化结果，渲染差异
+            if (optimizedText) {
+                renderDiff();
+            }
+        }
+
+        // 保存数据到localStorage
+        function saveData() {
+            localStorage.setItem(STORAGE_KEYS.model, modelSelect.value);
+            localStorage.setItem(STORAGE_KEYS.original, originalTextarea.value);
+            localStorage.setItem(STORAGE_KEYS.optimized, optimizedText);
+            localStorage.setItem(STORAGE_KEYS.diffBlocks, JSON.stringify(diffBlocks));
+        }
+
+        // 页面加载时恢复数据
+        document.addEventListener('DOMContentLoaded', loadSavedData);
+
+        // 监听模型选择器变化
+        modelSelect.addEventListener('change', saveData);
+
+        // 监听文本域输入变化
+        originalTextarea.addEventListener('input', () => {
+            originalText = originalTextarea.value;
+            saveData();
+        });
+
+        function goBack() {
+            window.location.href = './index.html';
+        }
+
+        function goToStoryboard() {
+            window.location.href = './storyboard.html';
+        }
+
+        function acceptAllChanges() {
+            const acceptButtons = document.querySelectorAll('.diff-btn-accept, .hint-btn-accept');
+            acceptButtons.forEach(btn => btn.click());
+            showToast('已接受所有改动', 'success');
+        }
+
+        function generateStoryboard() {
+            const finalScript = optimizedText || originalText;
+            if (!finalScript) {
+                showToast('请先进行剧本校验优化', 'error');
+                return;
+            }
+            localStorage.setItem('storyboard-from-script', finalScript);
+            window.location.href = './storyboard.html';
+        }
+
+        function showToast(message, type = '') {
+            toast.textContent = message;
+            toast.className = 'toast ' + type;
+            void toast.offsetWidth;
+            toast.classList.add('show');
+            clearTimeout(toast._hideTimer);
+            toast._hideTimer = setTimeout(() => toast.classList.remove('show'), 2500);
+        }
+
+        function clearOriginal() {
+            originalTextarea.value = '';
+            originalText = '';
+            optimizedText = '';
+            optimizedDisplay.innerHTML = '<span style="color: var(--text-muted);">优化结果将在这里显示...</span>';
+            document.getElementById('originalHighlight').innerHTML = '';
+            diffBlocks = [];
+            renderHintPanel([]);
+            saveData();
+        }
+
+        function loadSample() {
+            originalTextarea.value = `第一幕
+场景：一间温馨的客厅
+
+李明：今天天气真好，我们出去走走吧。
+王芳：好啊，我也正想出去透透气。
+
+李明穿上外套，拿起钥匙。
+王芳：等一下，我去拿包。
+
+两人一起走出家门，阳光洒在他们脸上。`;
+        }
+
+        function formatScript() {
+            const text = originalTextarea.value;
+            if (!text.trim()) {
+                showToast('请先输入剧本内容', 'error');
+                return;
+            }
+            
+            let formatted = text;
+            
+            // 移除多余的空格和换行
+            formatted = formatted.replace(/\r\n/g, '\n');
+            formatted = formatted.replace(/[ \t]+/g, ' ');
+            formatted = formatted.replace(/ +/g, ' ');
+            
+            // 移除连续多个换行，保留单个
+            formatted = formatted.replace(/\n{2,}/g, '\n');
+            
+            // 在「第X幕」「第X场」前添加空行并单独成行
+            formatted = formatted.replace(/([第][零一二三四五六七八九十百千0-9]+[幕场])/g, '\n\n$1\n\n');
+            
+            // 在「场景：」前添加空行
+            formatted = formatted.replace(/(场景：)/g, '\n\n$1');
+            
+            // 在人物名（包含动作描述）后单独成行
+            // 匹配：人物名（动作）：对话
+            formatted = formatted.replace(/([\u4e00-\u9fa5]{2,4}[\s\S]*?：)/g, '\n$1');
+            
+            // 在括号动作描述后添加换行（如：李明（动作）：对话）
+            formatted = formatted.replace(/(\([^)]+\)：)/g, '$1\n');
+            
+            // 处理纯动作描述（没有冒号的段落）
+            // 在动作描述后添加空行
+            formatted = formatted.replace(/([。！？])\s*([^\n：])/g, '$1\n\n$2');
+            
+            // 在分号后换行
+            formatted = formatted.replace(/(；)\s*/g, '$1\n');
+            
+            // 移除多余的空行，保留合理的段落分隔
+            formatted = formatted.replace(/\n{4,}/g, '\n\n\n');
+            formatted = formatted.replace(/\n\n\n/g, '\n\n');
+            
+            // 场景描述后添加空行
+            formatted = formatted.replace(/(场景：[^\n]+)\n/g, '$1\n\n');
+            
+            // 移除开头结尾的多余换行
+            formatted = formatted.trim();
+            
+            // 在每个新的人物对话前添加空行（但不是场景描述后）
+            formatted = formatted.replace(/\n([\u4e00-\u9fa5]{2,4}（)/g, '\n\n$1');
+            
+            // 确保第一幕前没有多余空行
+            formatted = formatted.replace(/^\n+/, '');
+            
+            originalTextarea.value = formatted;
+            originalText = formatted;
+            saveToStorage();
+            showToast('剧本已格式化', 'success');
+        }
+
+        async function startOptimize() {
+            const text = originalTextarea.value.trim();
+            if (!text) {
+                showToast('请先输入剧本内容', 'error');
+                return;
+            }
+
+            optimizeBtn.disabled = true;
+            optimizeBtn.innerHTML = '<span class="loading-spinner"></span><span>分析中...</span>';
+            statusText.textContent = '正在分析中...';
+            statusText.className = 'status-text loading';
+
+            try {
+                const result = await callAI(text, modelSelect.value);
+                processAIResult(result, text);
+                
+                originalText = text;
+                renderDiff();
+                saveData();
+                statusText.textContent = '优化完成';
+                statusText.className = 'status-text success';
+                document.getElementById('acceptAllBtn').style.display = 'flex';
+            } catch (error) {
+                statusText.textContent = '优化失败';
+                statusText.className = 'status-text error';
+                showToast('优化失败: ' + error.message, 'error');
+            } finally {
+                optimizeBtn.disabled = false;
+                optimizeBtn.innerHTML = '<span>✨</span><span>AI 校验优化</span>';
+            }
+        }
+
+        function processAIResult(result, text) {
+            if (result.changes && Array.isArray(result.changes)) {
+                const blocks = result.changes.map((change, index) => {
+                    let type = 'change';
+                    const originalType = change.type || '未知';
+                    switch (originalType) {
+                        case '新增':
+                        case '添加':
+                        case 'insert':
+                            type = 'add';
+                            break;
+                        case '删除':
+                        case '移除':
+                        case 'delete':
+                            type = 'remove';
+                            break;
+                        case '替换':
+                        case 'replace':
+                            type = 'change';
+                            break;
+                        case '调整':
+                        case '修改':
+                        case 'adjust':
+                            type = 'adjust';
+                            break;
+                    }
+                    return {
+                        type: type,
+                        text: change.modified || change.original || '',
+                        original: change.original || '',
+                        changed: change.modified || '',
+                        problem: change.problem || '',
+                        effect: change.effect || '',
+                        index: index,
+                        originalType: originalType
+                    };
+                });
+                
+                let tempText = text;
+                const sortedChanges = [...result.changes].sort((a, b) => 
+                    text.lastIndexOf(b.original) - text.lastIndexOf(a.original)
+                );
+                sortedChanges.forEach(change => {
+                    if (change.original && change.modified) {
+                        const originalHasNewline = change.original.endsWith('\n');
+                        let modifiedText = change.modified;
+                        if (originalHasNewline && !modifiedText.endsWith('\n')) {
+                            modifiedText += '\n';
+                        }
+                        tempText = tempText.replace(change.original, modifiedText);
+                    }
+                });
+                
+                diffBlocks = blocks;
+                optimizedText = tempText;
+            } else {
+                const optText = result.script || result;
+                optimizedText = optText;
+                diffBlocks = computeDiff(text, optText);
+            }
+        }
+
+        function getModelName(modelType) {
+            const names = {
+                'doubao': '🌱 豆包',
+                'deepseek': '🔮 DeepSeek',
+                'openai': '🤖 GPT',
+                'claude': '🧠 Claude'
+            };
+            return names[modelType] || modelType;
+        }
+
+        async function callAI(text, modelType = null) {
+            const selectedModel = modelType || modelSelect.value;
+            const config = getModelConfig(selectedModel);
+            
+            // 获取自定义提示词
+            const promptTemplate = getCustomPrompt();
+            const prompt = promptTemplate.replace('{script}', text);
+
+            const response = await fetch(config.baseUrl + '/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + config.apiKey
+                },
+                body: JSON.stringify({
+                    model: config.modelName,
+                    messages: [{ role: 'user', content: prompt }],
+                    stream: true,
+                    temperature: 0.3,
+                    max_tokens: 4000
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('API请求失败: ' + response.statusText);
+            }
+
+            // 先以文本方式读取响应，处理可能的SSE格式
+            const textResponse = await response.text();
+            
+            let data;
+            let accumulatedContent = ''; // 用于累积流式响应的内容
+            
+            try {
+                // 尝试直接解析JSON
+                data = JSON.parse(textResponse);
+            } catch (e) {
+                // 如果解析失败，检查是否包含多个JSON对象（流式响应）
+                if (textResponse.includes('chat.completion.chunk')) {
+                    // 这是流式响应，可能是多个JSON对象拼接或SSE格式
+                    let jsonObjects;
+                    
+                    // 尝试按SSE格式解析（以data:开头的行）
+                    if (textResponse.startsWith('data:')) {
+                        const lines = textResponse.split('\n');
+                        jsonObjects = [];
+                        for (const line of lines) {
+                            if (line.startsWith('data:')) {
+                                const jsonStr = line.replace(/^data:\s*/, '').trim();
+                                if (jsonStr && jsonStr !== '[DONE]') {
+                                    jsonObjects.push(jsonStr);
+                                }
+                            }
+                        }
+                    } else {
+                            // 多个JSON对象直接拼接，尝试多种方法分割
+                            jsonObjects = null;
+                            
+                            // 方法1: 尝试按 {"id":" 分割（流式响应中每个chunk都以这个开头）
+                            const idPattern = /\{\s*["']id["']\s*:/g;
+                            const matches = [];
+                            let match;
+                            while ((match = idPattern.exec(textResponse)) !== null) {
+                                matches.push(match.index);
+                            }
+                            
+                            if (matches.length > 1) {
+                                jsonObjects = [];
+                                for (let i = 0; i < matches.length; i++) {
+                                    const start = matches[i];
+                                    const end = i < matches.length - 1 ? matches[i + 1] : textResponse.length;
+                                    const jsonStr = textResponse.substring(start, end).trim();
+                                    // 修复可能不完整的结尾
+                                    if (!jsonStr.endsWith('}')) {
+                                        // 找到最后一个完整的闭合花括号
+                                        const lastBrace = jsonStr.lastIndexOf('}');
+                                        if (lastBrace !== -1) {
+                                            jsonObjects.push(jsonStr.substring(0, lastBrace + 1));
+                                        }
+                                    } else {
+                                        jsonObjects.push(jsonStr);
+                                    }
+                                }
+                            }
+                            
+                            // 方法2: 如果方法1失败，尝试按花括号配对
+                            if (!jsonObjects || jsonObjects.length === 0) {
+                                jsonObjects = [];
+                                let depth = 0;
+                                let start = 0;
+                                for (let i = 0; i < textResponse.length; i++) {
+                                    if (textResponse[i] === '{') {
+                                        if (depth === 0) start = i;
+                                        depth++;
+                                    } else if (textResponse[i] === '}') {
+                                        depth--;
+                                        if (depth === 0) {
+                                            jsonObjects.push(textResponse.substring(start, i + 1));
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            console.log('使用备用方法找到的JSON对象数量:', jsonObjects?.length || 0);
+                        }
+                    
+                    if (jsonObjects && jsonObjects.length > 0) {
+                            console.log('找到的JSON对象数量:', jsonObjects.length);
+                            
+                            // 遍历所有JSON对象，累积delta.content
+                            for (let i = 0; i < jsonObjects.length; i++) {
+                                const jsonStr = jsonObjects[i];
+                                try {
+                                    const chunk = JSON.parse(jsonStr);
+                                    console.log(`第${i+1}个chunk的类型:`, chunk.object);
+                                    console.log(`第${i+1}个chunk的choices:`, chunk.choices);
+                                    console.log(`第${i+1}个chunk的delta:`, chunk.choices?.[0]?.delta);
+                                    // 如果是流式响应的chunk，提取内容
+                                    if (chunk.choices && chunk.choices[0]?.delta?.content) {
+                                        accumulatedContent += chunk.choices[0].delta.content;
+                                        console.log(`累积内容长度:`, accumulatedContent.length);
+                                    }
+                                    // 检查是否有reasoning_content（DeepSeek格式）
+                                    else if (chunk.choices && chunk.choices[0]?.delta?.reasoning_content) {
+                                        accumulatedContent += chunk.choices[0].delta.reasoning_content;
+                                        console.log(`从reasoning_content累积内容长度:`, accumulatedContent.length);
+                                    }
+                                    // 也检查是否有message.content（非流式格式）
+                                    else if (chunk.choices && chunk.choices[0]?.message?.content) {
+                                        accumulatedContent += chunk.choices[0].message.content;
+                                        console.log(`从message.content累积内容长度:`, accumulatedContent.length);
+                                    }
+                                } catch (e2) {
+                                    console.log(`第${i+1}个JSON解析失败:`, e2.message);
+                                }
+                            }
+                            
+                            console.log('最终累积内容长度:', accumulatedContent.length);
+                            
+                            // 使用最后一个有效的JSON对象作为基础
+                            const lastJson = jsonObjects[jsonObjects.length - 1];
+                            try {
+                                data = JSON.parse(lastJson);
+                                // 如果累积了内容，添加到data中
+                                if (accumulatedContent) {
+                                    data.choices = [{ message: { content: accumulatedContent } }];
+                                }
+                            } catch (e2) {
+                                throw new Error('无法解析响应: ' + e2.message);
+                            }
+                        } else {
+                            throw new Error('无法从流式响应中提取有效JSON');
+                        }
+                } else {
+                    throw new Error('无法解析响应: ' + e.message);
+                }
+            }
+
+            // 尝试多种响应格式
+            let content = data.choices?.[0]?.message?.content;
+            
+            console.log('尝试提取内容 - choices[0].message.content:', content);
+            
+            // 如果没有找到标准格式，尝试其他可能的格式
+            if (!content) {
+                console.log('choices数组为空，尝试其他格式...');
+                
+                // 检查是否是流式响应的累积内容
+                if (accumulatedContent) {
+                    console.log('使用累积的流式内容，长度:', accumulatedContent.length);
+                    content = accumulatedContent;
+                }
+                
+                // 检查是否是流式响应的最后一条消息
+                if (!content && data.message) {
+                    content = data.message.content || data.message.text;
+                    console.log('从data.message提取内容:', content?.substring(0, 50));
+                }
+                
+                // 检查是否是其他格式
+                if (!content && data.text) {
+                    content = data.text;
+                    console.log('从data.text提取内容:', content?.substring(0, 50));
+                }
+                
+                // 检查是否是数组格式
+                if (!content && Array.isArray(data.choices) && data.choices.length > 0) {
+                    const firstChoice = data.choices[0];
+                    content = firstChoice.message?.content || firstChoice.text || JSON.stringify(firstChoice);
+                    console.log('从choices数组提取内容:', content?.substring(0, 50));
+                }
+                
+                // 检查是否有其他字段包含内容
+                if (!content && data.choices?.[0]?.delta) {
+                    content = data.choices[0].delta.content;
+                    console.log('从delta提取内容:', content?.substring(0, 50));
+                }
+            }
+            
+            console.log('最终提取到的内容:', content?.substring(0, 100) + (content && content.length > 100 ? '...' : ''));
+            
+            if (!content) {
+                console.error('完整响应数据:', JSON.stringify(data).substring(0, 800));
+                console.error('响应中没有找到有效内容，可能是API配置问题或服务返回异常');
+                throw new Error('响应格式不正确');
+            }
+            
+            // 检查content是否已经是一个对象（API可能已经解析了JSON）
+            if (typeof content === 'object') {
+                console.log('content已经是对象，直接返回');
+                return content;
+            }
+            
+            // 尝试解析JSON响应
+            try {
+                const result = JSON.parse(content);
+                return result;
+            } catch (e) {
+                // 如果不是JSON格式，返回原始文本
+                console.log('解析JSON失败，返回原始文本');
+                return { changes: [], script: content };
+            }
+        }
+
+        // 默认提示词
+        const DEFAULT_PROMPT = `你是专业的漫剧剧本优化师。请逐句逐段分析用户提供的漫剧剧本，找出所有可以优化的地方，严格按照以下JSON格式返回结果，不要任何多余的文字、解释或markdown格式。
+
+优化方向：
+1. 增强画面感和镜头表现力，补充适合分镜绘制的视觉细节
+2. 优化台词，使其更符合人物性格和情绪
+3. 调整叙事节奏，删除冗余内容，突出关键情节
+4. 增加动作和表情描写，让人物更生动
+5. 优化场景转换，让故事更流畅
+
+返回格式要求：
+{
+  "changes": [
+    {
+      "original": "原始的句子或段落",
+      "modified": "优化后的句子或段落",
+      "problem": "这段原文存在的具体问题，1-2句话",
+      "effect": "优化后能带来的具体提升，1-2句话",
+      "type": "修改类型，可选值：新增/删除/替换/调整"
+    }
+  ]
+}
+
+注意事项：
+1. 只返回有改动的段落，没有问题的段落不要出现在结果中
+2. 改动粒度要细，尽量按句子拆分，不要整段大改
+3. 严格遵守JSON格式，所有字符串用双引号，不要有语法错误
+4. 不要返回任何JSON以外的内容，包括开头结尾的说明文字
+
+以下是需要优化的剧本：
+{script}`;
+
+        // 获取自定义提示词
+        function getCustomPrompt() {
+            const saved = localStorage.getItem('script-review-prompt');
+            return saved || DEFAULT_PROMPT;
+        }
+
+        // 打开提示词设置模态框
+        function openPromptModal() {
+            const modal = document.getElementById('promptModal');
+            const textarea = document.getElementById('promptTextarea');
+            textarea.value = getCustomPrompt();
+            modal.classList.add('show');
+        }
+
+        // 关闭提示词设置模态框
+        function closePromptModal() {
+            const modal = document.getElementById('promptModal');
+            modal.classList.remove('show');
+        }
+
+        // 保存提示词
+        function savePrompt() {
+            const textarea = document.getElementById('promptTextarea');
+            const value = textarea.value.trim();
+            if (!value) {
+                showToast('提示词不能为空', 'error');
+                return;
+            }
+            localStorage.setItem('script-review-prompt', value);
+            closePromptModal();
+            showToast('提示词已保存', 'success');
+        }
+
+        // 恢复默认提示词
+        function resetPrompt() {
+            const textarea = document.getElementById('promptTextarea');
+            textarea.value = DEFAULT_PROMPT;
+        }
+
+        // 点击模态框外部关闭
+        document.getElementById('promptModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closePromptModal();
+            }
+        });
+
+        function getModelConfig(type) {
+            // 从主站设置中读取配置
+            let settings = null;
+            try {
+                const saved = localStorage.getItem('ai-chat-settings');
+                if (saved) settings = JSON.parse(saved);
+            } catch (e) {
+                console.warn('读取设置失败:', e);
+            }
+            
+            const globalApiKey = settings?.globalApiKey || '';
+            const globalBaseUrl = settings?.globalBaseUrl || 'https://api.openai.com/v1';
+            
+            // 查找匹配模型类型的配置
+            let modelConfig = {};
+            if (settings?.models && Array.isArray(settings.models)) {
+                // 优先查找匹配类型的模型配置
+                const matchedModel = settings.models.find(m => m.type === type);
+                if (matchedModel) {
+                    modelConfig = matchedModel;
+                } else {
+                    // 如果没有匹配类型，使用第一个非空配置作为备选
+                    const fallbackModel = settings.models.find(m => m.apiKey || m.baseUrl);
+                    if (fallbackModel) {
+                        modelConfig = fallbackModel;
+                    }
+                }
+            }
+            
+            // 默认基础URL
+            const defaultBaseUrls = {
+                doubao: 'https://ark.cn-beijing.volces.com/api/text/chat',
+                deepseek: 'https://api.deepseek.com/v1',
+                openai: 'https://api.openai.com/v1',
+                claude: 'https://api.anthropic.com/v1'
+            };
+            
+            const configs = {
+                doubao: {
+                    apiKey: modelConfig.apiKey || globalApiKey,
+                    baseUrl: (modelConfig.baseUrl || globalBaseUrl || defaultBaseUrls.doubao).replace(/\/+$/, ''),
+                    modelName: modelConfig.name || 'doubao-seed-2-0-mini-260428'
+                },
+                deepseek: {
+                    apiKey: modelConfig.apiKey || globalApiKey,
+                    baseUrl: (modelConfig.baseUrl || globalBaseUrl || defaultBaseUrls.deepseek).replace(/\/+$/, ''),
+                    modelName: modelConfig.name || 'deepseek-chat'
+                },
+                openai: {
+                    apiKey: modelConfig.apiKey || globalApiKey,
+                    baseUrl: (modelConfig.baseUrl || globalBaseUrl || defaultBaseUrls.openai).replace(/\/+$/, ''),
+                    modelName: modelConfig.name || 'gpt-4o-mini'
+                },
+                claude: {
+                    apiKey: modelConfig.apiKey || globalApiKey,
+                    baseUrl: (modelConfig.baseUrl || globalBaseUrl || defaultBaseUrls.claude).replace(/\/+$/, ''),
+                    modelName: modelConfig.name || 'claude-sonnet-4-20250514'
+                }
+            };
+            
+            const config = configs[type] || configs.doubao;
+            console.log('API配置:', type, config);
+            return config;
+        }
+
+        function renderHintPanel(blocks) {
+            const hintPanel = document.getElementById('hintPanelContent');
+            
+            // 过滤出有问题分析的改动
+            const filteredBlocks = blocks.filter(b => b.problem && b.type !== 'equal');
+            
+            if (filteredBlocks.length === 0) {
+                hintPanel.innerHTML = `
+                    <div style="text-align: center; color: var(--text-muted); padding: 20px;">
+                        <div style="font-size: 32px; margin-bottom: 8px;">🔍</div>
+                        <div style="font-size: 12px;">点击"AI校验优化"查看分析结果</div>
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = '';
+            filteredBlocks.forEach((block, index) => {
+                const typeLabel = {
+                    add: '➕ 新增',
+                    remove: '➖ 删除',
+                    change: '🔄 替换',
+                    adjust: '🔧 调整'
+                }[block.type] || '🔄 替换';
+                
+                html += `
+                    <div class="hint-card ${block.type}" data-index="${index}">
+                        <div class="hint-type">${typeLabel}</div>
+                        <div class="hint-problem">${escapeHtml(block.problem || '')}</div>
+                        <div class="hint-effect">${escapeHtml(block.effect || '')}</div>
+                        ${block.original ? `<div class="hint-original">原文: ${escapeHtml(block.original)}</div>` : ''}
+                        <div class="hint-actions">
+                            <button class="hint-btn hint-btn-accept" onclick="acceptChange(${index})" title="接受此修改">✓ 接受</button>
+                            <button class="hint-btn hint-btn-reject" onclick="rejectChange(${index})" title="拒绝此修改">✕ 拒绝</button>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            hintPanel.innerHTML = html;
+        }
+
+        function renderOriginalHighlight() {
+            const hasJsonChanges = diffBlocks.some(block => block.problem);
+            
+            if (!hasJsonChanges || !originalText) {
+                originalHighlight.innerHTML = '';
+                return;
+            }
+            
+            let text = originalText;
+            const sortedBlocks = [...diffBlocks].filter(b => b.type !== 'equal' && b.original).sort((a, b) => {
+                const posA = text.lastIndexOf(a.original);
+                const posB = text.lastIndexOf(b.original);
+                return posB - posA;
+            });
+            
+            sortedBlocks.forEach((block) => {
+                const pos = text.lastIndexOf(block.original);
+                if (pos !== -1) {
+                    const before = text.substring(0, pos);
+                    const after = text.substring(pos + block.original.length);
+                    const className = `highlight-${block.type}`;
+                    text = before + `<span class="${className}">${escapeHtml(block.original)}</span>` + after;
+                }
+            });
+            
+            originalHighlight.innerHTML = text;
+        }
+
+        function renderDiff() {
+            if (!optimizedText) {
+                optimizedDisplay.innerHTML = '<span style="color: var(--text-muted);">点击"AI校验优化"开始分析</span>';
+                renderHintPanel([]);
+                return;
+            }
+
+            // 如果没有diffBlocks（首次渲染或非JSON响应），计算差异
+            if (!diffBlocks || diffBlocks.length === 0) {
+                diffBlocks = computeDiff(originalText, optimizedText);
+            }
+            
+            let html = '';
+
+            // 如果是JSON格式的改动（有problem字段），显示完整剧本并高亮改动
+            const hasJsonChanges = diffBlocks.some(block => block.problem);
+            
+            // 渲染提示信息面板
+            renderHintPanel(diffBlocks);
+            // 渲染原始剧本高亮
+            renderOriginalHighlight();
+            
+            if (hasJsonChanges && optimizedText) {
+                // 显示完整优化后的剧本，高亮改动部分
+                let text = optimizedText;
+                
+                // 对每个改动进行高亮标记
+                const sortedBlocks = [...diffBlocks].filter(b => b.type !== 'equal').sort((a, b) => {
+                    // 按位置排序，从后往前处理
+                    const posA = text.lastIndexOf(a.changed || a.text);
+                    const posB = text.lastIndexOf(b.changed || b.text);
+                    return posB - posA;
+                });
+                
+                sortedBlocks.forEach((block, idx) => {
+                    const targetText = block.changed || block.text;
+                    const pos = text.lastIndexOf(targetText);
+                    if (pos !== -1) {
+                        const before = text.substring(0, pos);
+                        const after = text.substring(pos + targetText.length);
+                        
+                        let className = '';
+                        let typeLabel = '';
+                        switch (block.type) {
+                            case 'add':
+                                className = 'diff-add';
+                                typeLabel = '➕ 新增';
+                                break;
+                            case 'remove':
+                                className = 'diff-remove';
+                                typeLabel = '➖ 删除';
+                                break;
+                            case 'adjust':
+                                className = 'diff-adjust';
+                                typeLabel = '🔧 调整';
+                                break;
+                            default:
+                                className = 'diff-change';
+                                typeLabel = '🔄 替换';
+                        }
+                        
+                        const escapedText = escapeHtml(targetText);
+                        const problem = escapeHtml(block.problem || '');
+                        const effect = escapeHtml(block.effect || '');
+                        
+                        const highlighted = `<span id="diff-${idx}" class="diff-block ${className}" data-index="${idx}">${escapedText}</span>` +
+                            `<div class="diff-actions">` +
+                            `<button class="diff-btn diff-btn-accept" onclick="acceptChange(${idx})" title="接受">✓</button>` +
+                            `<button class="diff-btn diff-btn-reject" onclick="rejectChange(${idx})" title="拒绝">✕</button>` +
+                            `</div>` +
+                            `<div class="tooltip">` +
+                            `<div class="tooltip-title">${typeLabel}</div>` +
+                            `<div class="tooltip-problem"><div class="tooltip-label">问题分析</div><div class="tooltip-content">${problem}</div></div>` +
+                            `<div class="tooltip-effect"><div class="tooltip-label">改动效果</div><div class="tooltip-content">${effect}</div></div>` +
+                            `</div>`;
+                        
+                        text = before + highlighted + after;
+                    }
+                });
+                
+                // 最后处理换行
+                text = text.replace(/\n/g, '<br>');
+                html = text;
+            } else {
+                // 传统差异对比模式
+                for (let i = 0; i < diffBlocks.length; i++) {
+                    const block = diffBlocks[i];
+                    const blockId = 'diff-' + i;
+
+                    let content = escapeHtml(block.text);
+                    let className = '';
+
+                    if (block.type === 'add') {
+                        className = 'diff-add';
+                    } else if (block.type === 'remove') {
+                        className = 'diff-remove';
+                    } else if (block.type === 'change') {
+                        className = 'diff-change';
+                    }
+
+                    if (block.type !== 'equal') {
+                        html += `<span id="${blockId}" class="diff-block ${className}" data-index="${i}">${content}</span>`;
+                        html += `<div class="diff-actions">`;
+                        html += `<button class="diff-btn diff-btn-accept" onclick="acceptChange(${i})" title="接受">✓</button>`;
+                        html += `<button class="diff-btn diff-btn-reject" onclick="rejectChange(${i})" title="拒绝">✕</button>`;
+                        html += `</div>`;
+                        html += `<div class="tooltip">`;
+                        html += `<div class="tooltip-title">`;
+                        html += block.type === 'add' ? '➕ 新增' : 
+                                block.type === 'remove' ? '➖ 删除' : '🔄 修改';
+                        html += `</div>`;
+                        html += `<div class="tooltip-problem">`;
+                        html += `<div class="tooltip-label">问题分析</div>`;
+                        html += `<div class="tooltip-content">${block.problem || getProblemDescription(block)}</div>`;
+                        html += `</div>`;
+                        html += `<div class="tooltip-effect">`;
+                        html += `<div class="tooltip-label">改动效果</div>`;
+                        html += `<div class="tooltip-content">${block.effect || getEffectDescription(block)}</div>`;
+                        html += `</div>`;
+                        html += `</div>`;
+                        html += '<br>';
+                    } else {
+                        html += content;
+                    }
+                }
+            }
+
+            optimizedDisplay.innerHTML = html;
+            
+            positionFloatingElements();
+        }
+
+        function positionFloatingElements() {
+            const blocks = optimizedDisplay.querySelectorAll('.diff-block');
+            blocks.forEach(block => {
+                const tooltip = block.querySelector('.tooltip');
+                const actions = block.querySelector('.diff-actions');
+                
+                const updatePositions = () => {
+                    const rect = block.getBoundingClientRect();
+                    const vw = window.innerWidth;
+                    
+                    if (actions) {
+                        actions.style.left = (rect.right - 56) + 'px';
+                        actions.style.top = (rect.top - 2) + 'px';
+                    }
+                    
+                    if (tooltip) {
+                        const tooltipWidth = 320;
+                        let leftPos = rect.right + 12;
+                        let topPos = rect.top;
+                        
+                        if (leftPos + tooltipWidth > vw - 20) {
+                            leftPos = rect.left - tooltipWidth - 12;
+                        }
+                        if (topPos < 10) {
+                            topPos = 10;
+                        }
+                        
+                        tooltip.style.left = leftPos + 'px';
+                        tooltip.style.top = topPos + 'px';
+                    }
+                };
+                
+                block.addEventListener('mouseenter', updatePositions);
+                block.addEventListener('mousemove', updatePositions);
+            });
+        }
+
+        window.addEventListener('scroll', () => {
+            document.querySelectorAll('.diff-block:hover .tooltip, .diff-block:hover .diff-actions').forEach(el => {
+                const block = el.closest('.diff-block');
+                if (!block || !block.matches(':hover')) return;
+                const rect = block.getBoundingClientRect();
+                if (el.classList.contains('tooltip')) {
+                    const vw = window.innerWidth;
+                    let leftPos = rect.right + 12;
+                    if (leftPos + 320 > vw - 20) leftPos = rect.left - 332;
+                    el.style.left = leftPos + 'px';
+                    el.style.top = Math.max(10, rect.top) + 'px';
+                } else {
+                    el.style.left = (rect.right - 56) + 'px';
+                    el.style.top = (rect.top - 2) + 'px';
+                }
+            });
+        }, true);
+
+        window.addEventListener('resize', () => {
+            document.querySelectorAll('.diff-block:hover .tooltip, .diff-block:hover .diff-actions').forEach(el => {
+                const block = el.closest('.diff-block');
+                if (!block || !block.matches(':hover')) return;
+                const rect = block.getBoundingClientRect();
+                if (el.classList.contains('tooltip')) {
+                    const vw = window.innerWidth;
+                    let leftPos = rect.right + 12;
+                    if (leftPos + 320 > vw - 20) leftPos = rect.left - 332;
+                    el.style.left = leftPos + 'px';
+                    el.style.top = Math.max(10, rect.top) + 'px';
+                } else {
+                    el.style.left = (rect.right - 56) + 'px';
+                    el.style.top = (rect.top - 2) + 'px';
+                }
+            });
+        });
+
+        // 面板内部滚动时也重新定位
+        if (optimizedDisplay) {
+            optimizedDisplay.addEventListener('scroll', () => {
+                document.querySelectorAll('.diff-block:hover .tooltip, .diff-block:hover .diff-actions').forEach(el => {
+                    const block = el.closest('.diff-block');
+                    if (!block || !block.matches(':hover')) return;
+                    const rect = block.getBoundingClientRect();
+                    if (el.classList.contains('tooltip')) {
+                        const vw = window.innerWidth;
+                        let leftPos = rect.right + 12;
+                        if (leftPos + 320 > vw - 20) leftPos = rect.left - 332;
+                        el.style.left = leftPos + 'px';
+                        el.style.top = Math.max(10, rect.top) + 'px';
+                    } else {
+                        el.style.left = (rect.right - 56) + 'px';
+                        el.style.top = (rect.top - 2) + 'px';
+                    }
+                });
+            });
+        }
+
+        function computeDiff(oldText, newText) {
+            const blocks = [];
+            const oldLines = oldText.split('\n');
+            const newLines = newText.split('\n');
+
+            let i = 0, j = 0;
+
+            while (i < oldLines.length || j < newLines.length) {
+                const oldLine = oldLines[i] || '';
+                const newLine = newLines[j] || '';
+
+                if (i >= oldLines.length) {
+                    blocks.push({ type: 'add', text: newLine + '\n', original: '', changed: newLine });
+                    j++;
+                } else if (j >= newLines.length) {
+                    blocks.push({ type: 'remove', text: oldLine + '\n', original: oldLine, changed: '' });
+                    i++;
+                } else if (oldLine === newLine) {
+                    blocks.push({ type: 'equal', text: newLine + '\n' });
+                    i++;
+                    j++;
+                } else {
+                    let matchFound = false;
+                    for (let k = j + 1; k < newLines.length; k++) {
+                        if (newLines[k] === oldLine) {
+                            for (let l = j; l < k; l++) {
+                                blocks.push({ type: 'add', text: newLines[l] + '\n', original: '', changed: newLines[l] });
+                            }
+                            blocks.push({ type: 'equal', text: oldLine + '\n' });
+                            j = k + 1;
+                            i++;
+                            matchFound = true;
+                            break;
+                        }
+                    }
+                    if (!matchFound) {
+                        blocks.push({ type: 'change', text: newLine + '\n', original: oldLine, changed: newLine });
+                        i++;
+                        j++;
+                    }
+                }
+            }
+
+            return blocks;
+        }
+
+        function getProblemDescription(block) {
+            if (block.type === 'add') {
+                return '新增内容，丰富了剧本细节，使场景更生动具体。';
+            } else if (block.type === 'remove') {
+                return '精简冗余表述，使剧本更加紧凑。';
+            } else if (block.type === 'change') {
+                return `原："${(block.original || '').substring(0, 20)}..." 优化为："${(block.changed || '').substring(0, 20)}..."`;
+            }
+            return '';
+        }
+
+        function getEffectDescription(block) {
+            if (block.type === 'add') {
+                return '增强画面感，让读者更容易想象情境。';
+            } else if (block.type === 'remove') {
+                return '加快叙事节奏，提升阅读体验。';
+            } else if (block.type === 'change') {
+                return '提升对话质量，人物性格更鲜明。';
+            }
+            return '';
+        }
+
+        function acceptChange(index) {
+            const block = diffBlocks[index];
+            if (!block || block.type === 'equal') return;
+
+            if (block.type === 'remove') {
+                const lines = originalText.split('\n');
+                lines.splice(findLineIndex(block.original), 1);
+                originalText = lines.join('\n');
+            } else if (block.type === 'add') {
+                originalText += '\n' + block.changed;
+            } else if (block.type === 'change') {
+                originalText = originalText.replace(block.original, block.changed);
+            }
+
+            originalTextarea.value = originalText;
+            diffBlocks.splice(index, 1);
+            refreshDiff();
+            saveData();
+            showToast('已接受此改动', 'success');
+        }
+
+        function rejectChange(index) {
+            const block = diffBlocks[index];
+            if (!block || block.type === 'equal') return;
+
+            if (block.type === 'add') {
+                optimizedText = optimizedText.replace(block.changed, '');
+            } else if (block.type === 'remove') {
+                optimizedText += '\n' + block.original;
+            } else if (block.type === 'change') {
+                optimizedText = optimizedText.replace(block.changed, block.original);
+            } else if (block.type === 'adjust') {
+                optimizedText = optimizedText.replace(block.changed, block.original);
+            }
+
+            diffBlocks.splice(index, 1);
+            refreshDiff();
+            saveData();
+            showToast('已拒绝此改动', '');
+        }
+
+        function findLineIndex(text) {
+            const lines = originalText.split('\n');
+            return lines.findIndex(line => line === text);
+        }
+
+        function refreshDiff() {
+            renderDiff();
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML.replace(/\n/g, '<br>');
+        }
+
+        function toggleExportMenu() {
+            const menu = document.getElementById('exportMenu');
+            const btn = document.getElementById('exportBtn');
+            menu.classList.toggle('show');
+            btn.classList.toggle('active');
+        }
+
+        function closeExportMenu() {
+            const menu = document.getElementById('exportMenu');
+            const btn = document.getElementById('exportBtn');
+            menu.classList.remove('show');
+            btn.classList.remove('active');
+        }
+
+        // 点击外部关闭菜单
+        document.addEventListener('click', function(e) {
+            const dropdown = document.querySelector('.dropdown');
+            if (dropdown && !dropdown.contains(e.target)) {
+                closeExportMenu();
+            }
+        });
+
+        function exportToClipboard() {
+            const text = originalTextarea.value.trim();
+            if (!text) {
+                showToast('没有可导出的内容', 'error');
+                return;
+            }
+
+            navigator.clipboard.writeText(text).then(() => {
+                showToast('已复制到剪贴板', 'success');
+            }).catch(() => {
+                showToast('复制失败', 'error');
+            });
+            closeExportMenu();
+        }
+
+        function exportToTxt() {
+            const text = originalTextarea.value.trim();
+            if (!text) {
+                showToast('没有可导出的内容', 'error');
+                return;
+            }
+
+            const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = '剧本_' + new Date().toLocaleDateString('zh-CN').replace(/\//g, '-') + '.txt';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast('TXT文件已下载', 'success');
+            closeExportMenu();
+        }
+
+        function exportToDocx() {
+            const text = originalTextarea.value.trim();
+            if (!text) {
+                showToast('没有可导出的内容', 'error');
+                return;
+            }
+
+            const docxContent = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<?mso-application progid="Word.Document"?>
+<w:wordDocument xmlns:w="http://schemas.microsoft.com/office/word/2003/wordml">
+<w:body>
+<w:p>
+<w:r>
+<w:t>${escapeXml(text)}</w:t>
+</w:r>
+</w:p>
+</w:body>
+</w:wordDocument>`;
+
+            const blob = new Blob([docxContent], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = '剧本_' + new Date().toLocaleDateString('zh-CN').replace(/\//g, '-') + '.docx';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast('DOCX文件已下载', 'success');
+            closeExportMenu();
+        }
+
+        function escapeXml(text) {
+            return text
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&apos;')
+                .replace(/\n/g, '</w:t></w:r></w:p><w:p><w:r><w:t>');
+        }
+
+        loadSample();
+    </script>
+</body>
+</html>

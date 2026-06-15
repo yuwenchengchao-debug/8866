@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图片生成</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #1a1a2e;
+            color: #e0e0e0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 14px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+
+        .header-title {
+            font-size: 16px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .settings-btn {
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 8px;
+            padding: 6px 12px;
+            color: white;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .settings-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .main {
+            flex: 1;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            overflow-y: auto;
+        }
+
+        .prompt-section {
+            background: #25253a;
+            border-radius: 12px;
+            padding: 16px;
+        }
+
+        .prompt-label {
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .prompt-textarea {
+            width: 100%;
+            min-height: 100px;
+            padding: 12px;
+            border: 1px solid #3a3a5a;
+            border-radius: 8px;
+            background: #1a1a2e;
+            color: #e0e0e0;
+            font-size: 14px;
+            line-height: 1.6;
+            resize: vertical;
+            font-family: inherit;
+        }
+
+        .prompt-textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .prompt-textarea::placeholder {
+            color: #666;
+        }
+
+        .options-row {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 12px;
+        }
+
+        .option-group {
+            flex: 1;
+            min-width: 120px;
+        }
+
+        .option-label {
+            font-size: 11px;
+            color: #888;
+            margin-bottom: 6px;
+            display: block;
+        }
+
+        .option-select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #3a3a5a;
+            border-radius: 8px;
+            background: #1a1a2e;
+            color: #e0e0e0;
+            font-size: 13px;
+            cursor: pointer;
+            outline: none;
+        }
+
+        .option-select:focus {
+            border-color: #667eea;
+        }
+
+        .generate-btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .generate-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .generate-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .result-section {
+            flex: 1;
+            background: #25253a;
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            min-height: 200px;
+        }
+
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .result-label {
+            font-size: 12px;
+            color: #888;
+            font-weight: 500;
+        }
+
+        .result-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .result-btn {
+            background: #3a3a5a;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            color: #e0e0e0;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .result-btn:hover:not(:disabled) {
+            background: #4a4a6a;
+        }
+
+        .result-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .result-placeholder {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+            font-size: 14px;
+            gap: 12px;
+        }
+
+        .result-placeholder .icon {
+            font-size: 48px;
+            opacity: 0.5;
+        }
+
+        .result-image-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #1a1a2e;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .result-image {
+            max-width: 100%;
+            max-height: 400px;
+            object-fit: contain;
+            border-radius: 8px;
+        }
+
+        .error-msg {
+            color: #ff6b6b;
+            font-size: 13px;
+            padding: 12px;
+            background: rgba(255, 107, 107, 0.1);
+            border-radius: 8px;
+            margin-top: 12px;
+            display: none;
+        }
+
+        .error-msg.show {
+            display: block;
+        }
+
+        .settings-hint {
+            font-size: 11px;
+            color: #666;
+            text-align: center;
+            padding: 8px;
+            border-top: 1px solid #3a3a5a;
+            margin-top: auto;
+        }
+
+        /* 图片网格 */
+        .image-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 12px;
+            margin-top: 12px;
+        }
+
+        .image-grid-item {
+            position: relative;
+            aspect-ratio: 1;
+            background: #1a1a2e;
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .image-grid-item:hover {
+            transform: scale(1.02);
+        }
+
+        .image-grid-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .image-grid-item .delete-btn {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            width: 24px;
+            height: 24px;
+            background: rgba(0,0,0,0.6);
+            border: none;
+            border-radius: 50%;
+            color: white;
+            font-size: 12px;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .image-grid-item:hover .delete-btn {
+            opacity: 1;
+        }
+
+        /* 设置弹窗 */
+        .settings-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .settings-modal.show {
+            display: flex;
+        }
+
+        .settings-content {
+            background: #25253a;
+            border-radius: 16px;
+            width: 90%;
+            max-width: 480px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        }
+
+        .settings-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid #3a3a5a;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .settings-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #e0e0e0;
+        }
+
+        .settings-close {
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 4px;
+        }
+
+        .settings-close:hover {
+            color: #e0e0e0;
+        }
+
+        .settings-body {
+            padding: 20px;
+        }
+
+        .settings-section {
+            margin-bottom: 20px;
+        }
+
+        .settings-section-title {
+            font-size: 13px;
+            color: #667eea;
+            font-weight: 600;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .settings-input-group {
+            margin-bottom: 12px;
+        }
+
+        .settings-input-label {
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 6px;
+            display: block;
+        }
+
+        .settings-input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #3a3a5a;
+            border-radius: 8px;
+            background: #1a1a2e;
+            color: #e0e0e0;
+            font-size: 13px;
+            outline: none;
+        }
+
+        .settings-input:focus {
+            border-color: #667eea;
+        }
+
+        .settings-input::placeholder {
+            color: #555;
+        }
+
+        .settings-save-btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .settings-save-btn:hover {
+            opacity: 0.9;
+        }
+
+        .api-list {
+            margin-top: 12px;
+        }
+
+        .api-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: #1a1a2e;
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+
+        .api-item-name {
+            flex: 1;
+            font-size: 13px;
+            color: #e0e0e0;
+        }
+
+        .api-item-btn {
+            background: #3a3a5a;
+            border: none;
+            padding: 4px 10px;
+            border-radius: 4px;
+            color: #888;
+            font-size: 11px;
+            cursor: pointer;
+        }
+
+        .api-item-btn:hover {
+            background: #4a4a6a;
+            color: #e0e0e0;
+        }
+
+        .add-api-btn {
+            width: 100%;
+            padding: 10px;
+            background: transparent;
+            border: 1px dashed #3a3a5a;
+            border-radius: 8px;
+            color: #888;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .add-api-btn:hover {
+            border-color: #667eea;
+            color: #667eea;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-title">
+            <span>🎨</span>
+            <span>图片生成</span>
+        </div>
+        <div class="header-actions">
+            <button class="settings-btn" id="settingsBtn">⚙️ 设置</button>
+        </div>
+    </div>
+
+    <div class="main">
+        <div class="prompt-section">
+            <div class="prompt-label">✨ 描述你想要生成的图片</div>
+            <textarea class="prompt-textarea" id="promptInput" placeholder="例如：一只可爱的橘色猫咪坐在窗台上，阳光洒在毛茸茸的身上..."></textarea>
+            
+            <div class="options-row">
+                <div class="option-group">
+                    <span class="option-label">API 配置</span>
+                    <select class="option-select" id="apiSelect">
+                        <option value="">选择绘图API...</option>
+                    </select>
+                </div>
+                <div class="option-group">
+                    <span class="option-label">图片尺寸</span>
+                    <select class="option-select" id="sizeSelect">
+                        <option value="1024x1024">1:1 (1024×1024)</option>
+                        <option value="1024x1792">9:16 (1024×1792)</option>
+                        <option value="1792x1024">16:9 (1792×1024)</option>
+                    </select>
+                </div>
+                <div class="option-group">
+                    <span class="option-label">生成数量</span>
+                    <select class="option-select" id="countSelect">
+                        <option value="1">1 张</option>
+                        <option value="2">2 张</option>
+                        <option value="4">4 张</option>
+                    </select>
+                </div>
+            </div>
+
+            <button class="generate-btn" id="generateBtn" disabled>
+                <span>🎨</span>
+                <span>生成图片</span>
+            </button>
+
+            <div class="error-msg" id="errorMsg"></div>
+        </div>
+
+        <div class="result-section">
+            <div class="result-header">
+                <span class="result-label">生成结果</span>
+                <div class="result-actions">
+                    <button class="result-btn" id="copyPromptBtn" disabled>📋 复制提示词</button>
+                    <button class="result-btn" id="downloadBtn" disabled>⬇️ 下载</button>
+                    <button class="result-btn" id="sendBtn" disabled>📤 发送到对话</button>
+                </div>
+            </div>
+            <div class="result-placeholder" id="resultPlaceholder">
+                <span class="icon">🖼️</span>
+                <span>生成的图片将显示在这里</span>
+            </div>
+            <div class="result-image-container" id="resultContainer" style="display: none;">
+                <img class="result-image" id="resultImage" alt="生成的图片">
+            </div>
+            <div class="image-grid" id="imageGrid" style="display: none;"></div>
+        </div>
+
+        <div class="settings-hint" id="settingsHint">请先配置绘图API</div>
+    </div>
+
+    <!-- 设置弹窗 -->
+    <div class="settings-modal" id="settingsModal">
+        <div class="settings-content">
+            <div class="settings-header">
+                <span class="settings-title">⚙️ 绘图API设置</span>
+                <button class="settings-close" id="settingsClose">✕</button>
+            </div>
+            <div class="settings-body">
+                <div class="settings-section">
+                    <div class="settings-section-title">📋 我的API列表</div>
+                    <div class="api-list" id="apiList"></div>
+                    <button class="add-api-btn" id="addApiBtn">+ 添加新API</button>
+                </div>
+                
+                <div class="settings-section" id="apiFormSection" style="display: none;">
+                    <div class="settings-section-title">➕ 添加/编辑 API</div>
+                    <div class="settings-input-group">
+                        <label class="settings-input-label">API 名称</label>
+                        <input type="text" class="settings-input" id="apiNameInput" placeholder="例如：OpenAI">
+                    </div>
+                    <div class="settings-input-group">
+                        <label class="settings-input-label">API Key</label>
+                        <input type="password" class="settings-input" id="apiKeyInput" placeholder="sk-...">
+                    </div>
+                    <div class="settings-input-group">
+                        <label class="settings-input-label">Base URL</label>
+                        <input type="text" class="settings-input" id="apiBaseUrlInput" placeholder="https://api.openai.com/v1">
+                    </div>
+                    <div class="settings-input-group">
+                        <label class="settings-input-label">模型名称</label>
+                        <input type="text" class="settings-input" id="apiModelInput" placeholder="dall-e-3">
+                    </div>
+                    <button class="settings-save-btn" id="saveApiBtn">💾 保存API</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 绘图API配置存储
+        let imageApis = JSON.parse(localStorage.getItem('ai-chat-image-apis') || '[]');
+        let currentImages = [];
+        let isGenerating = false;
+        let editingApiIndex = -1;
+
+        const promptInput = document.getElementById('promptInput');
+        const generateBtn = document.getElementById('generateBtn');
+        const apiSelect = document.getElementById('apiSelect');
+        const settingsBtn = document.getElementById('settingsBtn');
+        const settingsModal = document.getElementById('settingsModal');
+        const settingsClose = document.getElementById('settingsClose');
+        const apiList = document.getElementById('apiList');
+        const addApiBtn = document.getElementById('addApiBtn');
+        const apiFormSection = document.getElementById('apiFormSection');
+        const saveApiBtn = document.getElementById('saveApiBtn');
+        const apiNameInput = document.getElementById('apiNameInput');
+        const apiKeyInput = document.getElementById('apiKeyInput');
+        const apiBaseUrlInput = document.getElementById('apiBaseUrlInput');
+        const apiModelInput = document.getElementById('apiModelInput');
+
+        // 初始化API选择器
+        function initApiSelect() {
+            apiSelect.innerHTML = '<option value="">选择绘图API...</option>';
+            imageApis.forEach((api, idx) => {
+                const option = document.createElement('option');
+                option.value = idx;
+                option.textContent = api.name;
+                apiSelect.appendChild(option);
+            });
+            updateSettingsHint();
+        }
+
+        // 更新设置提示
+        function updateSettingsHint() {
+            const settingsHint = document.getElementById('settingsHint');
+            if (imageApis.length === 0) {
+                settingsHint.textContent = '⚠️ 请先点击右上角"设置"添加绘图API';
+                settingsHint.style.color = '#ff6b6b';
+            } else if (apiSelect.value === '') {
+                settingsHint.textContent = '请选择要使用的API';
+                settingsHint.style.color = '#888';
+            } else {
+                const api = imageApis[apiSelect.value];
+                settingsHint.textContent = `当前使用：${api.name}`;
+                settingsHint.style.color = '#4ade80';
+            }
+        }
+
+        // 渲染API列表
+        function renderApiList() {
+            apiList.innerHTML = '';
+            if (imageApis.length === 0) {
+                apiList.innerHTML = '<div style="color:#666;font-size:12px;padding:10px;">暂无API，请添加</div>';
+                return;
+            }
+            imageApis.forEach((api, idx) => {
+                const item = document.createElement('div');
+                item.className = 'api-item';
+                item.innerHTML = `
+                    <span class="api-item-name">${api.name}</span>
+                    <button class="api-item-btn" onclick="editApi(${idx})">编辑</button>
+                    <button class="api-item-btn" onclick="deleteApi(${idx})" style="color:#ff6b6b;">删除</button>
+                `;
+                apiList.appendChild(item);
+            });
+        }
+
+        // 编辑API
+        window.editApi = function(idx) {
+            editingApiIndex = idx;
+            const api = imageApis[idx];
+            apiNameInput.value = api.name;
+            apiKeyInput.value = api.apiKey;
+            apiBaseUrlInput.value = api.baseUrl;
+            apiModelInput.value = api.model || 'dall-e-3';
+            apiFormSection.style.display = 'block';
+        };
+
+        // 删除API
+        window.deleteApi = function(idx) {
+            if (confirm('确定要删除这个API吗？')) {
+                imageApis.splice(idx, 1);
+                localStorage.setItem('ai-chat-image-apis', JSON.stringify(imageApis));
+                renderApiList();
+                initApiSelect();
+            }
+        };
+
+        // 打开设置
+        settingsBtn.addEventListener('click', () => {
+            settingsModal.classList.add('show');
+            renderApiList();
+            apiFormSection.style.display = 'none';
+            editingApiIndex = -1;
+        });
+
+        // 关闭设置
+        settingsClose.addEventListener('click', () => {
+            settingsModal.classList.remove('show');
+        });
+
+        // 点击弹窗外部关闭
+        settingsModal.addEventListener('click', (e) => {
+            if (e.target === settingsModal) {
+                settingsModal.classList.remove('show');
+            }
+        });
+
+        // 添加新API
+        addApiBtn.addEventListener('click', () => {
+            editingApiIndex = -1;
+            apiNameInput.value = '';
+            apiKeyInput.value = '';
+            apiBaseUrlInput.value = '';
+            apiModelInput.value = 'dall-e-3';
+            apiFormSection.style.display = 'block';
+        });
+
+        // 保存API
+        saveApiBtn.addEventListener('click', () => {
+            const name = apiNameInput.value.trim();
+            const apiKey = apiKeyInput.value.trim();
+            const baseUrl = apiBaseUrlInput.value.trim().replace(/\/+$/, '');
+            const model = apiModelInput.value.trim() || 'dall-e-3';
+
+            if (!name || !apiKey || !baseUrl) {
+                alert('请填写所有必填项');
+                return;
+            }
+
+            const apiData = { name, apiKey, baseUrl, model };
+
+            if (editingApiIndex >= 0) {
+                imageApis[editingApiIndex] = apiData;
+            } else {
+                imageApis.push(apiData);
+            }
+
+            localStorage.setItem('ai-chat-image-apis', JSON.stringify(imageApis));
+            renderApiList();
+            initApiSelect();
+            apiFormSection.style.display = 'none';
+            editingApiIndex = -1;
+        });
+
+        // API选择变化
+        apiSelect.addEventListener('change', updateSettingsHint);
+
+        // 监听输入
+        promptInput.addEventListener('input', () => {
+            generateBtn.disabled = !promptInput.value.trim() || isGenerating || apiSelect.value === '';
+        });
+
+        // 生成图片
+        generateBtn.addEventListener('click', generateImage);
+
+        async function generateImage() {
+            const prompt = promptInput.value.trim();
+            if (!prompt || isGenerating) return;
+
+            const apiIdx = apiSelect.value;
+            if (apiIdx === '') {
+                showError('请先选择绘图API');
+                return;
+            }
+
+            const api = imageApis[apiIdx];
+            if (!api || !api.apiKey) {
+                showError('API配置无效');
+                return;
+            }
+
+            isGenerating = true;
+            generateBtn.disabled = true;
+            generateBtn.innerHTML = '<span class="loading-spinner"></span><span>生成中...</span>';
+            
+            const resultPlaceholder = document.getElementById('resultPlaceholder');
+            const resultContainer = document.getElementById('resultContainer');
+            const imageGrid = document.getElementById('imageGrid');
+            const errorMsg = document.getElementById('errorMsg');
+            const copyPromptBtn = document.getElementById('copyPromptBtn');
+            const downloadBtn = document.getElementById('downloadBtn');
+            const sendBtn = document.getElementById('sendBtn');
+
+            errorMsg.classList.remove('show');
+            resultPlaceholder.innerHTML = '<span class="loading-spinner" style="width:32px;height:32px;border-width:3px"></span><span>正在生成图片...</span>';
+            resultPlaceholder.style.display = 'flex';
+            resultContainer.style.display = 'none';
+            imageGrid.style.display = 'none';
+            copyPromptBtn.disabled = true;
+            downloadBtn.disabled = true;
+            sendBtn.disabled = true;
+
+            try {
+                const size = document.getElementById('sizeSelect').value;
+                const n = parseInt(document.getElementById('countSelect').value);
+
+                const response = await fetch(`${api.baseUrl}/images/generations`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${api.apiKey}`,
+                    },
+                    body: JSON.stringify({
+                        model: api.model || 'dall-e-3',
+                        prompt: prompt,
+                        n: n,
+                        size: size,
+                        style: 'vivid',
+                    }),
+                });
+
+                if (!response.ok) {
+                    const errData = await response.json().catch(() => ({}));
+                    throw new Error(errData.error?.message || `HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+                currentImages = data.data || [];
+
+                if (currentImages.length === 0) {
+                    throw new Error('未生成任何图片');
+                }
+
+                if (currentImages.length === 1) {
+                    resultPlaceholder.style.display = 'none';
+                    resultContainer.style.display = 'flex';
+                    document.getElementById('resultImage').src = currentImages[0].url;
+                    imageGrid.style.display = 'none';
+                } else {
+                    resultPlaceholder.style.display = 'none';
+                    resultContainer.style.display = 'none';
+                    imageGrid.style.display = 'grid';
+                    imageGrid.innerHTML = currentImages.map((img, idx) => `
+                        <div class="image-grid-item" onclick="selectImage(${idx})">
+                            <img src="${img.url}" alt="生成的图片 ${idx + 1}">
+                            <button class="delete-btn" onclick="event.stopPropagation(); deleteImage(${idx})">✕</button>
+                        </div>
+                    `).join('');
+                }
+
+                copyPromptBtn.disabled = false;
+                downloadBtn.disabled = false;
+                sendBtn.disabled = false;
+
+            } catch (err) {
+                showError('生成失败: ' + err.message);
+                resultPlaceholder.innerHTML = '<span class="icon">❌</span><span>生成失败</span>';
+            }
+
+            isGenerating = false;
+            generateBtn.disabled = !promptInput.value.trim() || apiSelect.value === '';
+            generateBtn.innerHTML = '<span>🎨</span><span>生成图片</span>';
+        }
+
+        function showError(msg) {
+            const errorMsg = document.getElementById('errorMsg');
+            errorMsg.textContent = msg;
+            errorMsg.classList.add('show');
+        }
+
+        // 复制提示词
+        document.getElementById('copyPromptBtn').addEventListener('click', async () => {
+            try {
+                await navigator.clipboard.writeText(promptInput.value);
+                const btn = document.getElementById('copyPromptBtn');
+                btn.textContent = '✓ 已复制';
+                setTimeout(() => btn.textContent = '📋 复制提示词', 1500);
+            } catch {
+                showError('复制失败');
+            }
+        });
+
+        // 下载图片
+        document.getElementById('downloadBtn').addEventListener('click', async () => {
+            if (currentImages.length === 0) return;
+            try {
+                const img = currentImages[0];
+                const response = await fetch(img.url);
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `generated_image_${Date.now()}.png`;
+                a.click();
+                URL.revokeObjectURL(url);
+                const btn = document.getElementById('downloadBtn');
+                btn.textContent = '✓ 已下载';
+                setTimeout(() => btn.textContent = '⬇️ 下载', 1500);
+            } catch {
+                showError('下载失败');
+            }
+        });
+
+        // 发送到对话
+        document.getElementById('sendBtn').addEventListener('click', () => {
+            if (currentImages.length === 0) return;
+            const img = currentImages[0];
+            localStorage.setItem('ai-chat-pending-image', JSON.stringify({
+                url: img.url,
+                prompt: promptInput.value,
+                revised_prompt: img.revised_prompt
+            }));
+            window.parent.postMessage({ type: 'imageGenerated', image: img }, '*');
+            showToast('已发送到对话');
+        });
+
+        function showToast(msg) {
+            const toast = document.createElement('div');
+            toast.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#4ade80;color:#000;padding:10px 20px;border-radius:8px;font-size:14px;z-index:1000;';
+            toast.textContent = msg;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 2000);
+        }
+
+        window.selectImage = function(idx) {
+            const resultContainer = document.getElementById('resultContainer');
+            const imageGrid = document.getElementById('imageGrid');
+            const resultImage = document.getElementById('resultImage');
+            const img = currentImages[idx];
+            imageGrid.style.display = 'none';
+            resultContainer.style.display = 'flex';
+            resultImage.src = img.url;
+        };
+
+        window.deleteImage = function(idx) {
+            const resultPlaceholder = document.getElementById('resultPlaceholder');
+            const resultContainer = document.getElementById('resultContainer');
+            const imageGrid = document.getElementById('imageGrid');
+            const copyPromptBtn = document.getElementById('copyPromptBtn');
+            const downloadBtn = document.getElementById('downloadBtn');
+            const sendBtn = document.getElementById('sendBtn');
+            
+            currentImages.splice(idx, 1);
+            if (currentImages.length === 0) {
+                resultPlaceholder.style.display = 'flex';
+                resultPlaceholder.innerHTML = '<span class="icon">🖼️</span><span>生成的图片将显示在这里</span>';
+                resultContainer.style.display = 'none';
+                copyPromptBtn.disabled = true;
+                downloadBtn.disabled = true;
+                sendBtn.disabled = true;
+            } else if (currentImages.length === 1) {
+                resultContainer.style.display = 'flex';
+                document.getElementById('resultImage').src = currentImages[0].url;
+            }
+            renderImageGrid();
+        };
+
+        function renderImageGrid() {
+            const imageGrid = document.getElementById('imageGrid');
+            if (currentImages.length <= 1) {
+                imageGrid.style.display = 'none';
+                return;
+            }
+            imageGrid.style.display = 'grid';
+            imageGrid.innerHTML = currentImages.map((img, idx) => `
+                <div class="image-grid-item" onclick="selectImage(${idx})">
+                    <img src="${img.url}" alt="生成的图片 ${idx + 1}">
+                    <button class="delete-btn" onclick="event.stopPropagation(); deleteImage(${idx})">✕</button>
+                </div>
+            `).join('');
+        }
+
+        // 初始化
+        initApiSelect();
+    </script>
+</body>
+</html>
