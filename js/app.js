@@ -730,6 +730,7 @@ function loadSessionToDOM(sessionId) {
             if (Array.isArray(session.messages)) {
                 // 旧格式：遍历所有消息，找出发送给该模型的消息
                 for (const msg of session.messages) {
+                   if (!msg) continue; // 跳过 null 元素
                     let msgMi = msg.panel !== undefined ? msg.panel : mi;
                     if (msgMi !== mi) continue;
                     
