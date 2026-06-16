@@ -18,22 +18,24 @@ class AIWebsiteManager {
         return this.getDefaultConfig();
     }
 
-    getDefaultConfig() {
-        return [
-            { id: 'doubao-1', name: '豆包 #1', icon: '豆包.png', url: 'https://www.doubao.com/chat/1', enabled: true },
-            { id: 'doubao-2', name: '豆包 #2', icon: '豆包.png', url: 'https://www.doubao.com/chat/2', enabled: true },
-            { id: 'doubao-3', name: '豆包 #3', icon: '豆包.png', url: 'https://www.doubao.com/chat/3', enabled: true },
-            { id: 'doubao-4', name: '豆包 #4', icon: '豆包.png', url: 'https://www.doubao.com/chat/4', enabled: true },
-            { id: 'qianwen-1', name: '千问 #1', icon: '千问.png', url: 'https://create.qianwen.com/', enabled: true },
-            { id: 'qianwen-2', name: '千问 #2', icon: '千问.png', url: 'https://create.qianwen.com/', enabled: true },
-            { id: 'dola-1', name: 'dola', icon: 'dola.png', url: 'https://www.dola.com/chat/', enabled: true },
-            { id: 'oiioii-1', name: 'oiioii #1', icon: 'oiioii.png', url: 'https://www.oiioii.ai/home', enabled: true },
-            { id: 'oiioii-2', name: 'oiioii #2', icon: 'oiioii.png', url: 'https://www.oiioii.ai/home', enabled: true },
-            { id: 'xyq-1', name: '小云雀 #1', icon: '小云雀.png', url: 'https://xyq.jianying.com', enabled: true },
-            { id: 'xyq-2', name: '小云雀 #2', icon: '小云雀.png', url: 'https://xyq.jianying.com', enabled: true },
-            { id: 'jimeng-1', name: '即梦', icon: '即梦.png', url: 'https://jimeng.jianying.com/', enabled: true },
-        ];
-    }
+   getDefaultConfig() {
+    return [
+        { id: 'doubao-1', name: '豆包 #1', icon: '豆包.png', url: 'https://www.doubao.com/chat/1', enabled: true },
+        { id: 'doubao-2', name: '豆包 #2', icon: '豆包.png', url: 'https://www.doubao.com/chat/2', enabled: true },
+        { id: 'doubao-3', name: '豆包 #3', icon: '豆包.png', url: 'https://www.doubao.com/chat/3', enabled: true },
+        { id: 'doubao-4', name: '豆包 #4', icon: '豆包.png', url: 'https://www.doubao.com/chat/4', enabled: true },
+        { id: 'qianwen-1', name: '千问 #1', icon: '千问.png', url: 'https://create.qianwen.com/', enabled: true },
+        { id: 'qianwen-2', name: '千问 #2', icon: '千问.png', url: 'https://create.qianwen.com/', enabled: true },
+        { id: 'dola-1', name: 'dola #1', icon: 'dola.png', url: 'https://www.dola.com/chat/', enabled: true },
+        { id: 'dola-2', name: 'dola #2', icon: 'dola.png', url: 'https://www.dola.com/chat/', enabled: true },
+        { id: 'dola-3', name: 'dola #3', icon: 'dola.png', url: 'https://www.dola.com/chat/', enabled: true },
+        { id: 'oiioii-1', name: 'oiioii #1', icon: 'oiioii.png', url: 'https://www.oiioii.ai/home', enabled: true },
+        { id: 'oiioii-2', name: 'oiioii #2', icon: 'oiioii.png', url: 'https://www.oiioii.ai/home', enabled: true },
+        { id: 'xyq-1', name: '小云雀 #1', icon: '小云雀.png', url: 'https://xyq.jianying.com', enabled: true },
+        { id: 'xyq-2', name: '小云雀 #2', icon: '小云雀.png', url: 'https://xyq.jianying.com', enabled: true },
+        { id: 'jimeng-1', name: '即梦', icon: '即梦.png', url: 'https://jimeng.jianying.com/', enabled: true },
+    ];
+}
 
     saveConfig() {
         localStorage.setItem('ai-websites', JSON.stringify(this.websites));
